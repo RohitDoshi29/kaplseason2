@@ -44,8 +44,20 @@ export function useCricketStore() {
     }
   }, [matchHistory, isLoaded]);
 
-  const updateTeam = useCallback((teamId: string, updates: Partial<Team>) => {
-    setTeams(prev => prev.map(t => t.id === teamId ? { ...t, ...updates } : t));
+const updateTeam = useCallback((teamId: string, updates: Partial<Team>) => {
+    setTeams(prev => prev.map(t => {
+      if (t.id !== teamId) return t;
+      // Ensure players array exists when updating
+      const updatedTeam = { ...t, ...updates };
+      if (!updatedTeam.players) {
+        updatedTeam.players = Array.from({ length: 10 }, (_, i) => ({
+          id: `${teamId}-p${i + 1}`,
+          name: `Player ${i + 1}`,
+          photo: null,
+        }));
+      }
+      return updatedTeam;
+    }));
   }, []);
 
   const getTeam = useCallback((teamId: string) => {
