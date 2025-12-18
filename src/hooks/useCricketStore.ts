@@ -1,10 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Team, Match, MatchState, TeamStats, DEFAULT_TEAMS, Ball, Over } from '@/lib/cricketTypes';
+import { Team, Match, MatchState, TeamStats, DEFAULT_TEAMS, Ball, Over, Player } from '@/lib/cricketTypes';
 
 const STORAGE_KEYS = {
   TEAMS: 'kapl_teams',
   MATCH_STATE: 'kapl_match_state',
   MATCH_HISTORY: 'kapl_match_history',
+};
+
+// Helper to ensure team has players array (migration for old data)
+const migrateTeam = (team: Team): Team => {
+  if (!team.players || team.players.length === 0) {
+    return {
+      ...team,
+      players: Array.from({ length: 10 }, (_, i) => ({
+        id: `${team.id}-p${i + 1}`,
+        name: `Player ${i + 1}`,
+        photo: null,
+      })),
+    };
+  }
+  return team;
 };
 
 export function useCricketStore() {
@@ -13,13 +28,17 @@ export function useCricketStore() {
   const [matchHistory, setMatchHistory] = useState<Match[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Load from localStorage
+  // Load from localStorage with migration
   useEffect(() => {
     const savedTeams = localStorage.getItem(STORAGE_KEYS.TEAMS);
     const savedMatchState = localStorage.getItem(STORAGE_KEYS.MATCH_STATE);
     const savedHistory = localStorage.getItem(STORAGE_KEYS.MATCH_HISTORY);
 
-    setTeams(savedTeams ? JSON.parse(savedTeams) : DEFAULT_TEAMS);
+    // Migrate teams to ensure they have players array
+    const loadedTeams = savedTeams ? JSON.parse(savedTeams) : DEFAULT_TEAMS;
+    const migratedTeams = loadedTeams.map(migrateTeam);
+    
+    setTeams(migratedTeams);
     setMatchState(savedMatchState ? JSON.parse(savedMatchState) : { currentMatch: null, lastAction: null });
     setMatchHistory(savedHistory ? JSON.parse(savedHistory) : []);
     setIsLoaded(true);
@@ -217,8 +236,21 @@ const updateTeam = useCallback((teamId: string, updates: Partial<Team>) => {
     return Array.from(stats.values());
   }, [teams, matchHistory]);
 
-  const formatOvers = useCallback((over: number, ball: number) => {
+const formatOvers = useCallback((over: number, ball: number) => {
     return `${over}.${ball}`;
+  }, []);
+
+  // Reset season - clears match history but keeps teams
+  const resetSeason = useCallback(() => {
+    setMatchHistory([]);
+    setMatchState({ currentMatch: null, lastAction: null });
+  }, []);
+
+  // Reset everything - clears all data including teams
+  const resetEverything = useCallback(() => {
+    setTeams(DEFAULT_TEAMS);
+    setMatchHistory([]);
+    setMatchState({ currentMatch: null, lastAction: null });
   }, []);
 
   return {
@@ -237,5 +269,7 @@ const updateTeam = useCallback((teamId: string, updates: Partial<Team>) => {
     endMatch,
     getTeamStats,
     formatOvers,
+    resetSeason,
+    resetEverything,
   };
 }
