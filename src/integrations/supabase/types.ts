@@ -14,7 +14,114 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      match_history: {
+        Row: {
+          created_at: string
+          current_innings: number
+          group: string
+          id: string
+          innings1: Json | null
+          innings2: Json | null
+          status: string
+          team1_id: string
+          team2_id: string
+          winner: string | null
+        }
+        Insert: {
+          created_at?: string
+          current_innings?: number
+          group: string
+          id: string
+          innings1?: Json | null
+          innings2?: Json | null
+          status?: string
+          team1_id: string
+          team2_id: string
+          winner?: string | null
+        }
+        Update: {
+          created_at?: string
+          current_innings?: number
+          group?: string
+          id?: string
+          innings1?: Json | null
+          innings2?: Json | null
+          status?: string
+          team1_id?: string
+          team2_id?: string
+          winner?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_history_team1_id_fkey"
+            columns: ["team1_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "match_history_team2_id_fkey"
+            columns: ["team2_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      match_state: {
+        Row: {
+          current_match: Json | null
+          id: string
+          last_action: Json | null
+          updated_at: string
+        }
+        Insert: {
+          current_match?: Json | null
+          id?: string
+          last_action?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          current_match?: Json | null
+          id?: string
+          last_action?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      teams: {
+        Row: {
+          created_at: string
+          group: string
+          id: string
+          logo: string | null
+          name: string
+          players: Json
+          primary_color: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          group: string
+          id: string
+          logo?: string | null
+          name: string
+          players?: Json
+          primary_color: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          group?: string
+          id?: string
+          logo?: string | null
+          name?: string
+          players?: Json
+          primary_color?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
