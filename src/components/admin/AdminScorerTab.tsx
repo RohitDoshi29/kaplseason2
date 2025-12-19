@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { TeamBadge } from '@/components/cricket/TeamBadge';
 import { Button } from '@/components/ui/button';
@@ -21,9 +22,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Undo2, RefreshCw, Flag, PlayCircle, Target, User, ArrowLeftRight, History } from 'lucide-react';
+import { Undo2, RefreshCw, Flag, PlayCircle, Target, User, ArrowLeftRight, History, Eye } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
+import { Match } from '@/lib/cricketTypes';
+import MatchHistoryDetails from './MatchHistoryDetails';
 interface AdminScorerTabProps {
   onNavigateToSetup: () => void;
 }
@@ -31,6 +33,8 @@ interface AdminScorerTabProps {
 export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProps) {
   const { matchState, matchHistory, getTeam, addBall, undoLastBall, switchBattingTeam, swapStrike, endMatch, selectBatsman, selectBowler } = useCricketStore();
   const match = matchState.currentMatch;
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const team1 = match ? getTeam(match.team1Id) : null;
   const team2 = match ? getTeam(match.team2Id) : null;
@@ -123,6 +127,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                     <TableHead>Match</TableHead>
                     <TableHead className="text-center">Score</TableHead>
                     <TableHead className="text-center">Winner</TableHead>
+                    <TableHead className="text-center">Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -141,6 +146,18 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                         <TableCell className="text-center">
                           <span className="text-primary font-medium">{winnerTeam?.name || 'Tie'}</span>
                         </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedMatch(m);
+                              setDetailsOpen(true);
+                            }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -149,6 +166,13 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
             )}
           </CardContent>
         </Card>
+
+        <MatchHistoryDetails
+          match={selectedMatch}
+          getTeam={getTeam}
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+        />
       </div>
     );
   }
@@ -589,6 +613,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                   <TableHead>Match</TableHead>
                   <TableHead className="text-center">Score</TableHead>
                   <TableHead className="text-center">Winner</TableHead>
+                  <TableHead className="text-center">Details</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -607,6 +632,18 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                       <TableCell className="text-center">
                         <span className="text-primary font-medium">{winnerTeam?.name || 'Tie'}</span>
                       </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedMatch(m);
+                            setDetailsOpen(true);
+                          }}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -615,6 +652,13 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
           )}
         </CardContent>
       </Card>
+
+      <MatchHistoryDetails
+        match={selectedMatch}
+        getTeam={getTeam}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+      />
     </div>
   );
 }
