@@ -12,9 +12,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { MATCH_TYPE_LABELS } from '@/lib/cricketTypes';
+import { Badge } from '@/components/ui/badge';
 
 export default function PointsTable() {
-  const { teams, getTeamStats, getTeam } = useCricketStore();
+  const { teams, getTeamStats, getTeam, matchHistory } = useCricketStore();
   const stats = getTeamStats();
 
   const groupATeams = teams.filter(t => t.group === 'A');
@@ -82,6 +84,8 @@ export default function PointsTable() {
     );
   };
 
+  const completedMatches = matchHistory.filter(m => m.status === 'completed');
+
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-4">
       <Navigation />
@@ -92,6 +96,56 @@ export default function PointsTable() {
           {renderTable('Group A', groupATeams)}
           {renderTable('Group B', groupBTeams)}
         </div>
+
+        {/* Match History */}
+        {completedMatches.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Match History</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Match Type</TableHead>
+                    <TableHead>Teams</TableHead>
+                    <TableHead className="text-center">Score</TableHead>
+                    <TableHead>Winner</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {completedMatches.map(match => {
+                    const team1 = getTeam(match.team1Id);
+                    const team2 = getTeam(match.team2Id);
+                    const winner = match.winner ? getTeam(match.winner) : null;
+                    return (
+                      <TableRow key={match.id}>
+                        <TableCell>
+                          <Badge variant={match.matchType === 'final' ? 'default' : 'secondary'}>
+                            {MATCH_TYPE_LABELS[match.matchType]}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {team1 && <TeamBadge team={team1} size="sm" />}
+                            <span className="text-muted-foreground">vs</span>
+                            {team2 && <TeamBadge team={team2} size="sm" />}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center font-mono">
+                          {match.innings1?.runs || 0}/{match.innings1?.wickets || 0} - {match.innings2?.runs || 0}/{match.innings2?.wickets || 0}
+                        </TableCell>
+                        <TableCell>
+                          {winner && <TeamBadge team={winner} size="sm" />}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
       </main>
     </div>
   );

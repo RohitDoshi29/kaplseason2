@@ -5,6 +5,7 @@ import { ScoreCard } from '@/components/cricket/ScoreCard';
 import { BallTicker } from '@/components/cricket/BallTicker';
 import { OverTable } from '@/components/cricket/OverTable';
 import { PlayCircle } from 'lucide-react';
+import { MATCH_TYPE_LABELS } from '@/lib/cricketTypes';
 
 const Index = () => {
   const { matchState, getTeam, isLoaded } = useCricketStore();
@@ -32,11 +33,14 @@ const Index = () => {
         {match && team1 && team2 ? (
           <>
             {/* Match Status */}
-            <div className="text-center">
+            <div className="text-center space-y-2">
               <span className="inline-flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-2 rounded-full text-sm font-semibold animate-pulse">
                 <span className="w-2 h-2 bg-destructive rounded-full" />
-                LIVE - Group {match.group}
+                LIVE
               </span>
+              <div className="text-lg font-semibold text-foreground">
+                {MATCH_TYPE_LABELS[match.matchType]} {match.matchType === 'group' && `- Group ${match.group}`}
+              </div>
             </div>
 
             {/* Score Cards */}
