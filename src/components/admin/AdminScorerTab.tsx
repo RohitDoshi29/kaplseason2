@@ -354,6 +354,24 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
           <CardTitle>Scoring</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Negative Runs */}
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">Penalty Runs</p>
+            <div className="grid grid-cols-2 gap-2">
+              {[-2, -1].map((runs) => (
+                <Button
+                  key={runs}
+                  variant="destructive"
+                  className="h-14 text-xl font-bold"
+                  onClick={() => handleAddBall(runs)}
+                  disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+                >
+                  {runs}
+                </Button>
+              ))}
+            </div>
+          </div>
+
           {/* Runs */}
           <div>
             <p className="text-sm text-muted-foreground mb-2">Runs</p>
