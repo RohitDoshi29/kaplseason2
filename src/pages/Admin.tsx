@@ -3,7 +3,7 @@ import { AdminPasswordGate } from '@/components/cricket/AdminPasswordGate';
 import { Header } from '@/components/cricket/Header';
 import { Navigation } from '@/components/cricket/Navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, PlayCircle, Users, Settings, LogOut, Home } from 'lucide-react';
+import { Shield, PlayCircle, Users, Settings, LogOut, Home, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -11,6 +11,7 @@ import AdminScorerTab from '@/components/admin/AdminScorerTab';
 import AdminMatchSetupTab from '@/components/admin/AdminMatchSetupTab';
 import AdminTeamsTab from '@/components/admin/AdminTeamsTab';
 import AdminSettingsTab from '@/components/admin/AdminSettingsTab';
+import PlayerStatsTab from '@/components/admin/PlayerStatsTab';
 import { toast } from 'sonner';
 
 export default function Admin() {
@@ -55,7 +56,7 @@ export default function Admin() {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4 max-w-lg mx-auto">
+            <TabsList className="grid w-full grid-cols-5 max-w-2xl mx-auto">
               <TabsTrigger value="scorer" className="gap-2">
                 <Shield className="w-4 h-4" />
                 <span className="hidden sm:inline">Scorer</span>
@@ -67,6 +68,10 @@ export default function Admin() {
               <TabsTrigger value="teams" className="gap-2">
                 <Users className="w-4 h-4" />
                 <span className="hidden sm:inline">Teams</span>
+              </TabsTrigger>
+              <TabsTrigger value="stats" className="gap-2">
+                <BarChart3 className="w-4 h-4" />
+                <span className="hidden sm:inline">Stats</span>
               </TabsTrigger>
               <TabsTrigger value="settings" className="gap-2">
                 <Settings className="w-4 h-4" />
@@ -84,6 +89,10 @@ export default function Admin() {
 
             <TabsContent value="teams">
               <AdminTeamsTab />
+            </TabsContent>
+
+            <TabsContent value="stats">
+              <PlayerStatsTab />
             </TabsContent>
 
             <TabsContent value="settings">
