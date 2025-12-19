@@ -26,6 +26,7 @@ import { Undo2, RefreshCw, Flag, PlayCircle, Target, User, ArrowLeftRight, Histo
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Match } from '@/lib/cricketTypes';
 import MatchHistoryDetails from './MatchHistoryDetails';
+import { CricketAnimation, useCricketAnimation } from '@/components/cricket/CricketAnimations';
 interface AdminScorerTabProps {
   onNavigateToSetup: () => void;
 }
@@ -35,6 +36,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
   const match = matchState.currentMatch;
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const { animation, triggerFour, triggerSix, triggerWicket, triggerWinner, clearAnimation } = useCricketAnimation();
 
   const team1 = match ? getTeam(match.team1Id) : null;
   const team2 = match ? getTeam(match.team2Id) : null;
@@ -54,11 +56,11 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
     
     addBall(runs, isWicket, isWide, isNoBall);
     if (isWicket) {
-      toast.error('WICKET!', { duration: 2000 });
-    } else if (runs === 4) {
-      toast.success('FOUR!', { duration: 1500 });
+      triggerWicket();
     } else if (runs === 6) {
-      toast.success('SIX!', { duration: 1500 });
+      triggerSix();
+    } else if (runs === 4) {
+      triggerFour();
     }
   };
 
@@ -73,8 +75,25 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
   };
 
   const handleEndMatch = () => {
+    // Determine winner before ending match
+    const innings1 = match?.innings1;
+    const innings2 = match?.innings2;
+    let winnerName = 'Match';
+    
+    if (innings1 && innings2) {
+      if (innings1.runs > innings2.runs) {
+        winnerName = team1?.name || 'Team 1';
+      } else if (innings2.runs > innings1.runs) {
+        winnerName = team2?.name || 'Team 2';
+      } else {
+        winnerName = 'It\'s a Tie!';
+      }
+    } else if (innings1 && match?.currentInnings === 1) {
+      winnerName = team1?.name || 'Team 1';
+    }
+    
     endMatch();
-    toast.success('Match ended!');
+    triggerWinner(winnerName);
   };
 
   const canUndo = !!matchState.lastAction;
@@ -178,7 +197,13 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <>
+      <CricketAnimation
+        type={animation.type}
+        teamName={animation.teamName}
+        onComplete={clearAnimation}
+      />
+      <div className="max-w-4xl mx-auto space-y-4">
       {/* Current Score with Target */}
       <Card>
         <CardHeader className="pb-2">
@@ -660,5 +685,6 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
         onOpenChange={setDetailsOpen}
       />
     </div>
+    </>
   );
 }
