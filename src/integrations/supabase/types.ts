@@ -96,6 +96,7 @@ export type Database = {
           id: string
           logo: string | null
           name: string
+          player_count: number
           players: Json
           primary_color: string
           updated_at: string
@@ -106,6 +107,7 @@ export type Database = {
           id: string
           logo?: string | null
           name: string
+          player_count?: number
           players?: Json
           primary_color: string
           updated_at?: string
@@ -116,6 +118,7 @@ export type Database = {
           id?: string
           logo?: string | null
           name?: string
+          player_count?: number
           players?: Json
           primary_color?: string
           updated_at?: string

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { TeamBadge } from '@/components/cricket/TeamBadge';
 import { Button } from '@/components/ui/button';
@@ -6,9 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Upload, X, Check, ChevronDown, User } from 'lucide-react';
-import { PRESET_COLORS, Team, Player } from '@/lib/cricketTypes';
+import { Upload, X, Check, ChevronDown, User, Users } from 'lucide-react';
+import { PRESET_COLORS, Team, Player, PLAYER_COUNT_OPTIONS } from '@/lib/cricketTypes';
 import { cn } from '@/lib/utils';
 
 function PlayerCard({ 
@@ -141,11 +148,17 @@ function PlayerCard({
 function TeamCard({ team, onUpdate }: { team: Team; onUpdate: (updates: Partial<Team>) => void }) {
   const [name, setName] = useState(team.name);
   const [selectedColor, setSelectedColor] = useState(team.primaryColor);
+  const [playerCount, setPlayerCount] = useState(team.playerCount || 10);
   const [playersOpen, setPlayersOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Ensure players array exists
-  const players = team.players || Array.from({ length: 10 }, (_, i) => ({
+  // Sync playerCount with team when it changes
+  useEffect(() => {
+    setPlayerCount(team.playerCount || 10);
+  }, [team.playerCount]);
+
+  // Ensure players array exists and matches playerCount
+  const players = team.players?.slice(0, playerCount) || Array.from({ length: playerCount }, (_, i) => ({
     id: `${team.id}-p${i + 1}`,
     name: `Player ${i + 1}`,
     photo: null,
@@ -210,6 +223,33 @@ function TeamCard({ team, onUpdate }: { team: Team; onUpdate: (updates: Partial<
   const handleColorSelect = (color: string) => {
     setSelectedColor(color);
     onUpdate({ primaryColor: color });
+  };
+
+  const handlePlayerCountChange = (count: string) => {
+    const newCount = parseInt(count);
+    setPlayerCount(newCount);
+    
+    // Create new players array with the correct count
+    const currentPlayers = team.players || [];
+    let newPlayers: Player[];
+    
+    if (newCount > currentPlayers.length) {
+      // Add new players
+      newPlayers = [
+        ...currentPlayers,
+        ...Array.from({ length: newCount - currentPlayers.length }, (_, i) => ({
+          id: `${team.id}-p${currentPlayers.length + i + 1}`,
+          name: `Player ${currentPlayers.length + i + 1}`,
+          photo: null,
+        }))
+      ];
+    } else {
+      // Remove players
+      newPlayers = currentPlayers.slice(0, newCount);
+    }
+    
+    onUpdate({ playerCount: newCount, players: newPlayers });
+    toast.success(`Team size set to ${newCount} players`);
   };
 
   const handlePlayerUpdate = (playerIndex: number, updates: Partial<Player>) => {
@@ -301,16 +341,36 @@ function TeamCard({ team, onUpdate }: { team: Team; onUpdate: (updates: Partial<
           </div>
         </div>
 
+        {/* Player Count Section */}
+        <div>
+          <label className="text-sm font-medium mb-2 block flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Number of Players
+          </label>
+          <Select value={playerCount.toString()} onValueChange={handlePlayerCountChange}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select player count" />
+            </SelectTrigger>
+            <SelectContent>
+              {PLAYER_COUNT_OPTIONS.map((count) => (
+                <SelectItem key={count} value={count.toString()}>
+                  {count} Players
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Players Section */}
         <Collapsible open={playersOpen} onOpenChange={setPlayersOpen}>
           <CollapsibleTrigger asChild>
             <Button variant="outline" className="w-full justify-between">
-              <span>Players ({players.length})</span>
+              <span>Players ({playerCount})</span>
               <ChevronDown className={cn("w-4 h-4 transition-transform", playersOpen && "rotate-180")} />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="mt-3 space-y-2">
-            {players.map((player, index) => (
+            {players.slice(0, playerCount).map((player, index) => (
               <PlayerCard
                 key={player.id}
                 player={player}

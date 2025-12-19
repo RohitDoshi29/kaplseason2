@@ -267,18 +267,92 @@ export function useCricketStore() {
       isWide,
       isNoBall,
       isExtra: isWide || isNoBall,
+      batsmanId: innings.currentBatsmanId,
+      bowlerId: innings.currentBowlerId,
     };
 
     currentOver.balls.push(ball);
     innings.runs += runs;
     if (isWicket) innings.wickets += 1;
 
+    // Update batter stats
+    if (innings.currentBatsmanId && !isWide) {
+      const batterStats = { ...innings.batterStats };
+      if (!batterStats[innings.currentBatsmanId]) {
+        batterStats[innings.currentBatsmanId] = {
+          runs: 0,
+          ballsFaced: 0,
+          fours: 0,
+          sixes: 0,
+          isOut: false,
+        };
+      }
+      const stats = { ...batterStats[innings.currentBatsmanId] };
+      stats.runs += isNoBall ? 0 : runs; // No ball runs don't count for batter
+      stats.ballsFaced += 1;
+      if (runs === 4 && !isWide && !isNoBall) stats.fours += 1;
+      if (runs === 6 && !isWide && !isNoBall) stats.sixes += 1;
+      if (isWicket) {
+        stats.isOut = true;
+        stats.dismissalType = 'out';
+      }
+      batterStats[innings.currentBatsmanId] = stats;
+      innings.batterStats = batterStats;
+    }
+
+    // Update bowler stats
+    if (innings.currentBowlerId) {
+      const bowlerStats = { ...innings.bowlerStats };
+      if (!bowlerStats[innings.currentBowlerId]) {
+        bowlerStats[innings.currentBowlerId] = {
+          overs: 0,
+          balls: 0,
+          runs: 0,
+          wickets: 0,
+          wides: 0,
+          noBalls: 0,
+        };
+      }
+      const stats = { ...bowlerStats[innings.currentBowlerId] };
+      stats.runs += runs;
+      if (isWicket) stats.wickets += 1;
+      if (isWide) stats.wides += 1;
+      if (isNoBall) stats.noBalls += 1;
+      
+      if (!isWide && !isNoBall) {
+        stats.balls += 1;
+        if (stats.balls >= 6) {
+          stats.overs += 1;
+          stats.balls = 0;
+        }
+      }
+      bowlerStats[innings.currentBowlerId] = stats;
+      innings.bowlerStats = bowlerStats;
+    }
+
+    // Rotate strike on odd runs (1, 3, 5)
+    if (runs % 2 === 1 && innings.currentBatsmanId && innings.nonStrikerBatsmanId) {
+      const temp = innings.currentBatsmanId;
+      innings.currentBatsmanId = innings.nonStrikerBatsmanId;
+      innings.nonStrikerBatsmanId = temp;
+    }
+
     if (!isWide && !isNoBall) {
       innings.currentBall += 1;
       if (innings.currentBall >= 6) {
         innings.currentBall = 0;
         innings.currentOver += 1;
-        overs.push({ number: innings.currentOver + 1, balls: [] });
+        overs.push({ number: innings.currentOver + 1, balls: [], bowlerId: undefined });
+        
+        // Rotate strike at end of over
+        if (innings.currentBatsmanId && innings.nonStrikerBatsmanId) {
+          const temp = innings.currentBatsmanId;
+          innings.currentBatsmanId = innings.nonStrikerBatsmanId;
+          innings.nonStrikerBatsmanId = temp;
+        }
+        
+        // Clear current bowler for new over
+        innings.currentBowlerId = undefined;
       }
     }
 
@@ -296,6 +370,89 @@ export function useCricketStore() {
       lastAction: { type: 'addBall', previousState: matchState.currentMatch },
     };
     
+    setMatchState(newState);
+    await saveMatchState(newState);
+  }, [matchState, saveMatchState]);
+
+  const selectBatsman = useCallback(async (playerId: string, isStriker: boolean) => {
+    if (!matchState.currentMatch) return;
+    
+    const match = { ...matchState.currentMatch };
+    const innings = match.currentInnings === 1 ? { ...match.innings1! } : { ...match.innings2! };
+    
+    if (isStriker) {
+      innings.currentBatsmanId = playerId;
+    } else {
+      innings.nonStrikerBatsmanId = playerId;
+    }
+    
+    // Initialize batter stats if not exists
+    if (!innings.batterStats[playerId]) {
+      innings.batterStats = {
+        ...innings.batterStats,
+        [playerId]: {
+          runs: 0,
+          ballsFaced: 0,
+          fours: 0,
+          sixes: 0,
+          isOut: false,
+        },
+      };
+    }
+    
+    // Add to batting order if not already there
+    if (!innings.battingOrder.includes(playerId)) {
+      innings.battingOrder = [...innings.battingOrder, playerId];
+    }
+    
+    if (match.currentInnings === 1) {
+      match.innings1 = innings;
+    } else {
+      match.innings2 = innings;
+    }
+    
+    const newState = { currentMatch: match, lastAction: null };
+    setMatchState(newState);
+    await saveMatchState(newState);
+  }, [matchState, saveMatchState]);
+
+  const selectBowler = useCallback(async (playerId: string) => {
+    if (!matchState.currentMatch) return;
+    
+    const match = { ...matchState.currentMatch };
+    const innings = match.currentInnings === 1 ? { ...match.innings1! } : { ...match.innings2! };
+    
+    innings.currentBowlerId = playerId;
+    
+    // Set bowler for current over
+    const overs = [...innings.overs];
+    if (overs.length > 0) {
+      overs[overs.length - 1] = { ...overs[overs.length - 1], bowlerId: playerId };
+      innings.overs = overs;
+    }
+    
+    // Initialize bowler stats if not exists
+    if (!innings.bowlerStats[playerId]) {
+      innings.bowlerStats = {
+        ...innings.bowlerStats,
+        [playerId]: {
+          overs: 0,
+          balls: 0,
+          runs: 0,
+          wickets: 0,
+          wides: 0,
+          noBalls: 0,
+        },
+      };
+    }
+    
+    if (match.currentInnings === 1) {
+      match.innings1 = innings;
+    } else {
+      match.innings2 = innings;
+    }
+    
+    const newState = { currentMatch: match, lastAction: null };
     setMatchState(newState);
     await saveMatchState(newState);
   }, [matchState, saveMatchState]);
@@ -448,6 +605,8 @@ export function useCricketStore() {
     startMatch,
     getCurrentInnings,
     addBall,
+    selectBatsman,
+    selectBowler,
     undoLastBall,
     switchBattingTeam,
     endMatch,
