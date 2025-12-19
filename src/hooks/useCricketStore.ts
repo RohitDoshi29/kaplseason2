@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Team, Match, MatchState, TeamStats, DEFAULT_TEAMS, Ball, Over, Player } from '@/lib/cricketTypes';
+import { Team, Match, MatchState, TeamStats, DEFAULT_TEAMS, Ball, Over, Player, Innings } from '@/lib/cricketTypes';
 import type { Json } from '@/integrations/supabase/types';
 
 // Helper to convert DB team to app Team
@@ -11,6 +11,7 @@ const dbToTeam = (dbTeam: any): Team => ({
   logo: dbTeam.logo,
   primaryColor: dbTeam.primary_color,
   players: dbTeam.players as Player[],
+  playerCount: dbTeam.player_count || 10,
 });
 
 // Helper to convert app Team to DB format
@@ -21,6 +22,24 @@ const teamToDb = (team: Team) => ({
   logo: team.logo,
   primary_color: team.primaryColor,
   players: JSON.parse(JSON.stringify(team.players)) as Json,
+  player_count: team.playerCount || 10,
+});
+
+// Helper to create a new innings
+const createInnings = (battingTeamId: string, bowlingTeamId: string): Innings => ({
+  battingTeamId,
+  bowlingTeamId,
+  runs: 0,
+  wickets: 0,
+  overs: [{ number: 1, balls: [] }],
+  currentOver: 0,
+  currentBall: 0,
+  currentBatsmanId: undefined,
+  currentBowlerId: undefined,
+  nonStrikerBatsmanId: undefined,
+  batterStats: {},
+  bowlerStats: {},
+  battingOrder: [],
 });
 
 export function useCricketStore() {
@@ -214,15 +233,7 @@ export function useCricketStore() {
       group,
       team1Id,
       team2Id,
-      innings1: {
-        battingTeamId: team1Id,
-        bowlingTeamId: team2Id,
-        runs: 0,
-        wickets: 0,
-        overs: [{ number: 1, balls: [] }],
-        currentOver: 0,
-        currentBall: 0,
-      },
+      innings1: createInnings(team1Id, team2Id),
       innings2: null,
       currentInnings: 1,
       status: 'live',
@@ -307,15 +318,7 @@ export function useCricketStore() {
     const match = { ...matchState.currentMatch };
     
     if (match.currentInnings === 1 && match.innings1) {
-      match.innings2 = {
-        battingTeamId: match.team2Id,
-        bowlingTeamId: match.team1Id,
-        runs: 0,
-        wickets: 0,
-        overs: [{ number: 1, balls: [] }],
-        currentOver: 0,
-        currentBall: 0,
-      };
+      match.innings2 = createInnings(match.team2Id, match.team1Id);
       match.currentInnings = 2;
     }
     
