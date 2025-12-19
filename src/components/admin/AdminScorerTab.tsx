@@ -90,18 +90,65 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
 
   if (!match || !team1 || !team2 || !currentInnings || !battingTeam || !bowlingTeam) {
     return (
-      <div className="text-center py-16 space-y-6">
-        <div className="w-24 h-24 mx-auto rounded-full bg-muted flex items-center justify-center">
-          <PlayCircle className="w-12 h-12 text-muted-foreground" />
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="text-center py-16 space-y-6">
+          <div className="w-24 h-24 mx-auto rounded-full bg-muted flex items-center justify-center">
+            <PlayCircle className="w-12 h-12 text-muted-foreground" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold mb-2">No Active Match</h2>
+            <p className="text-muted-foreground mb-6">Start a new match to begin scoring</p>
+            <Button size="lg" className="gap-2" onClick={onNavigateToSetup}>
+              <PlayCircle className="w-5 h-5" />
+              Setup New Match
+            </Button>
+          </div>
         </div>
-        <div>
-          <h2 className="text-2xl font-bold mb-2">No Active Match</h2>
-          <p className="text-muted-foreground mb-6">Start a new match to begin scoring</p>
-          <Button size="lg" className="gap-2" onClick={onNavigateToSetup}>
-            <PlayCircle className="w-5 h-5" />
-            Setup New Match
-          </Button>
-        </div>
+
+        {/* Match History - Always visible */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="w-5 h-5" />
+              Match History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {matchHistory.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">No completed matches yet</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Match</TableHead>
+                    <TableHead className="text-center">Score</TableHead>
+                    <TableHead className="text-center">Winner</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {matchHistory.filter(m => m.status === 'completed').slice(-5).reverse().map((m) => {
+                    const t1 = getTeam(m.team1Id);
+                    const t2 = getTeam(m.team2Id);
+                    const winnerTeam = m.winner ? getTeam(m.winner) : null;
+                    return (
+                      <TableRow key={m.id}>
+                        <TableCell className="font-medium">
+                          {t1?.name} vs {t2?.name}
+                        </TableCell>
+                        <TableCell className="text-center text-sm">
+                          {m.innings1?.runs}/{m.innings1?.wickets} - {m.innings2?.runs}/{m.innings2?.wickets}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="text-primary font-medium">{winnerTeam?.name || 'Tie'}</span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
     );
   }
