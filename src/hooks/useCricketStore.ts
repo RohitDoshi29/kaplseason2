@@ -491,6 +491,29 @@ export function useCricketStore() {
     await saveMatchState(newState);
   }, [matchState, saveMatchState]);
 
+  const swapStrike = useCallback(async () => {
+    if (!matchState.currentMatch) return;
+    
+    const match = { ...matchState.currentMatch };
+    const innings = match.currentInnings === 1 ? { ...match.innings1! } : { ...match.innings2! };
+    
+    if (innings.currentBatsmanId && innings.nonStrikerBatsmanId) {
+      const temp = innings.currentBatsmanId;
+      innings.currentBatsmanId = innings.nonStrikerBatsmanId;
+      innings.nonStrikerBatsmanId = temp;
+      
+      if (match.currentInnings === 1) {
+        match.innings1 = innings;
+      } else {
+        match.innings2 = innings;
+      }
+      
+      const newState = { currentMatch: match, lastAction: null };
+      setMatchState(newState);
+      await saveMatchState(newState);
+    }
+  }, [matchState, saveMatchState]);
+
   const endMatch = useCallback(async () => {
     if (!matchState.currentMatch) return;
     
@@ -623,6 +646,7 @@ export function useCricketStore() {
     selectBowler,
     undoLastBall,
     switchBattingTeam,
+    swapStrike,
     endMatch,
     getTeamStats,
     formatOvers,

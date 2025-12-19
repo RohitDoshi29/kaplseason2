@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Undo2, RefreshCw, Flag, PlayCircle, Target, User } from 'lucide-react';
+import { Undo2, RefreshCw, Flag, PlayCircle, Target, User, ArrowLeftRight, History } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface AdminScorerTabProps {
@@ -29,7 +29,7 @@ interface AdminScorerTabProps {
 }
 
 export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProps) {
-  const { matchState, getTeam, addBall, undoLastBall, switchBattingTeam, endMatch, selectBatsman, selectBowler } = useCricketStore();
+  const { matchState, matchHistory, getTeam, addBall, undoLastBall, switchBattingTeam, swapStrike, endMatch, selectBatsman, selectBowler } = useCricketStore();
   const match = matchState.currentMatch;
 
   const team1 = match ? getTeam(match.team1Id) : null;
@@ -453,6 +453,19 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
           <Button
             variant="outline"
             className="w-full h-12 gap-2"
+            onClick={() => {
+              swapStrike();
+              toast.info('Strike rotated');
+            }}
+            disabled={!currentInnings.currentBatsmanId || !currentInnings.nonStrikerBatsmanId}
+          >
+            <ArrowLeftRight className="w-5 h-5" />
+            Change Strike
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full h-12 gap-2"
             onClick={handleUndo}
             disabled={!canUndo}
           >
@@ -508,6 +521,51 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+        </CardContent>
+      </Card>
+
+      {/* Match History */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History className="w-5 h-5" />
+            Match History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {matchHistory.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4">No completed matches yet</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Match</TableHead>
+                  <TableHead className="text-center">Score</TableHead>
+                  <TableHead className="text-center">Winner</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {matchHistory.filter(m => m.status === 'completed').slice(-5).reverse().map((m) => {
+                  const t1 = getTeam(m.team1Id);
+                  const t2 = getTeam(m.team2Id);
+                  const winnerTeam = m.winner ? getTeam(m.winner) : null;
+                  return (
+                    <TableRow key={m.id}>
+                      <TableCell className="font-medium">
+                        {t1?.name} vs {t2?.name}
+                      </TableCell>
+                      <TableCell className="text-center text-sm">
+                        {m.innings1?.runs}/{m.innings1?.wickets} - {m.innings2?.runs}/{m.innings2?.wickets}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="text-primary font-medium">{winnerTeam?.name || 'Tie'}</span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
