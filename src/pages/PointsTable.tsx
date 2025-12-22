@@ -42,49 +42,52 @@ export default function PointsTable() {
 
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="pb-3 md:pb-6">
+          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
             <span
-              className="w-3 h-3 rounded-full"
+              className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full"
               style={{ backgroundColor: `hsl(${groupTeams[0]?.primaryColor})` }}
             />
             {title}
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">#</TableHead>
-                <TableHead>Team</TableHead>
-                <TableHead className="text-center">M</TableHead>
-                <TableHead className="text-center">W</TableHead>
-                <TableHead className="text-center">L</TableHead>
-                <TableHead className="text-right">Runs</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedTeams.map((item, index) => (
-                <TableRow key={item.team.id}>
-                  <TableCell className="font-bold">{index + 1}</TableCell>
-                  <TableCell>
-                    <TeamBadge team={item.team} size="sm" />
-                  </TableCell>
-                  <TableCell className="text-center">{item.matchesPlayed}</TableCell>
-                  <TableCell className="text-center text-green-600 font-semibold">{item.wins}</TableCell>
-                  <TableCell className="text-center text-destructive font-semibold">{item.losses}</TableCell>
-                  <TableCell
-                    className={cn(
-                      'text-right font-bold text-lg',
-                      item.totalRuns < 0 && 'text-destructive'
-                    )}
-                  >
-                    {item.totalRuns}
-                  </TableCell>
+        <CardContent className="p-2 md:p-6 pt-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8 md:w-12 text-xs md:text-sm">#</TableHead>
+                  <TableHead className="text-xs md:text-sm">Team</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">M</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">W</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">L</TableHead>
+                  <TableHead className="text-right text-xs md:text-sm">Runs</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {sortedTeams.map((item, index) => (
+                  <TableRow key={item.team.id}>
+                    <TableCell className="font-bold text-xs md:text-sm">{index + 1}</TableCell>
+                    <TableCell>
+                      <TeamBadge team={item.team} size="sm" showName={false} className="md:hidden" />
+                      <TeamBadge team={item.team} size="sm" className="hidden md:flex" />
+                    </TableCell>
+                    <TableCell className="text-center text-xs md:text-sm">{item.matchesPlayed}</TableCell>
+                    <TableCell className="text-center text-green-600 font-semibold text-xs md:text-sm">{item.wins}</TableCell>
+                    <TableCell className="text-center text-destructive font-semibold text-xs md:text-sm">{item.losses}</TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-right font-bold text-sm md:text-lg',
+                        item.totalRuns < 0 && 'text-destructive'
+                      )}
+                    >
+                      {item.totalRuns}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     );
@@ -106,49 +109,51 @@ export default function PointsTable() {
         {/* Match History */}
         {completedMatches.length > 0 && (
           <Card>
-            <CardHeader>
-              <CardTitle>Match History</CardTitle>
+            <CardHeader className="pb-3 md:pb-6">
+              <CardTitle className="text-base md:text-lg">Match History</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Match Type</TableHead>
-                    <TableHead>Teams</TableHead>
-                    <TableHead className="text-center">Score</TableHead>
-                    <TableHead>Winner</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {completedMatches.map(match => {
-                    const team1 = getTeam(match.team1Id);
-                    const team2 = getTeam(match.team2Id);
-                    const winner = match.winner ? getTeam(match.winner) : null;
-                    return (
-                      <TableRow key={match.id}>
-                        <TableCell>
-                          <Badge variant={match.matchType === 'final' ? 'default' : 'secondary'}>
-                            {MATCH_TYPE_LABELS[match.matchType]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {team1 && <TeamBadge team={team1} size="sm" />}
-                            <span className="text-muted-foreground">vs</span>
-                            {team2 && <TeamBadge team={team2} size="sm" />}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center font-mono">
-                          {match.innings1?.runs || 0}/{match.innings1?.wickets || 0} - {match.innings2?.runs || 0}/{match.innings2?.wickets || 0}
-                        </TableCell>
-                        <TableCell>
-                          {winner && <TeamBadge team={winner} size="sm" />}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+            <CardContent className="p-2 md:p-6 pt-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs md:text-sm">Type</TableHead>
+                      <TableHead className="text-xs md:text-sm">Teams</TableHead>
+                      <TableHead className="text-center text-xs md:text-sm">Score</TableHead>
+                      <TableHead className="text-xs md:text-sm">Winner</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {completedMatches.map(match => {
+                      const team1 = getTeam(match.team1Id);
+                      const team2 = getTeam(match.team2Id);
+                      const winner = match.winner ? getTeam(match.winner) : null;
+                      return (
+                        <TableRow key={match.id}>
+                          <TableCell>
+                            <Badge variant={match.matchType === 'final' ? 'default' : 'secondary'} className="text-[10px] md:text-xs">
+                              {MATCH_TYPE_LABELS[match.matchType]}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 md:gap-2">
+                              {team1 && <TeamBadge team={team1} size="sm" showName={false} />}
+                              <span className="text-muted-foreground text-xs">vs</span>
+                              {team2 && <TeamBadge team={team2} size="sm" showName={false} />}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center font-mono text-xs md:text-sm whitespace-nowrap">
+                            {match.innings1?.runs || 0}/{match.innings1?.wickets || 0} - {match.innings2?.runs || 0}/{match.innings2?.wickets || 0}
+                          </TableCell>
+                          <TableCell>
+                            {winner && <TeamBadge team={winner} size="sm" showName={false} />}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         )}

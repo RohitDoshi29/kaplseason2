@@ -26,14 +26,14 @@ export function BallTicker({ balls, className }: BallTickerProps) {
   };
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
-      <span className="text-xs text-muted-foreground font-medium">LAST BALLS:</span>
+    <div className={cn('flex items-center gap-2 flex-wrap', className)}>
+      <span className="text-[10px] md:text-xs text-muted-foreground font-medium">LAST BALLS:</span>
       <div className="flex gap-1">
         {lastBalls.map((ball, index) => (
           <div
             key={ball.id}
             className={cn(
-              'w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm animate-scale-in',
+              'w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center font-bold text-xs md:text-sm animate-scale-in',
               getBallStyle(ball)
             )}
             style={{ animationDelay: `${index * 50}ms` }}
@@ -42,7 +42,7 @@ export function BallTicker({ balls, className }: BallTickerProps) {
           </div>
         ))}
         {lastBalls.length === 0 && (
-          <span className="text-muted-foreground text-sm">No balls yet</span>
+          <span className="text-muted-foreground text-xs md:text-sm">No balls yet</span>
         )}
       </div>
     </div>

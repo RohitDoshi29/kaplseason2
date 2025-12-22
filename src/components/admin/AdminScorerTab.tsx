@@ -336,129 +336,133 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
       {/* Batting Stats Table */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Batting Scorecard</CardTitle>
+          <CardTitle className="text-base md:text-lg">Batting Scorecard</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Batsman</TableHead>
-                <TableHead className="text-center">R</TableHead>
-                <TableHead className="text-center">B</TableHead>
-                <TableHead className="text-center">4s</TableHead>
-                <TableHead className="text-center">6s</TableHead>
-                <TableHead className="text-center">SR</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {currentInnings.battingOrder.map((playerId) => {
-                const player = battingTeam.players.find(p => p.id === playerId);
-                const stats = currentInnings.batterStats[playerId];
-                if (!player || !stats) return null;
-                
-                const strikeRate = stats.ballsFaced > 0 
-                  ? ((stats.runs / stats.ballsFaced) * 100).toFixed(1) 
-                  : '0.0';
-                const isStriker = playerId === currentInnings.currentBatsmanId;
-                const isNonStriker = playerId === currentInnings.nonStrikerBatsmanId;
-                
-                return (
-                  <TableRow key={playerId} className={isStriker ? 'bg-primary/10' : ''}>
-                    <TableCell className="font-medium">
-                      {player.name}
-                      {isStriker && <span className="text-primary ml-1">*</span>}
-                      {isNonStriker && <span className="text-muted-foreground ml-1">†</span>}
-                      {stats.isOut && <span className="text-destructive ml-1">(OUT)</span>}
-                    </TableCell>
-                    <TableCell className="text-center font-bold">{stats.runs}</TableCell>
-                    <TableCell className="text-center">{stats.ballsFaced}</TableCell>
-                    <TableCell className="text-center">{stats.fours}</TableCell>
-                    <TableCell className="text-center">{stats.sixes}</TableCell>
-                    <TableCell className="text-center">{strikeRate}</TableCell>
-                  </TableRow>
-                );
-              })}
-              {currentInnings.battingOrder.length === 0 && (
+        <CardContent className="p-2 md:p-6 pt-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    Select batsmen to start
-                  </TableCell>
+                  <TableHead className="text-xs md:text-sm">Batsman</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">R</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">B</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">4s</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">6s</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">SR</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {currentInnings.battingOrder.map((playerId) => {
+                  const player = battingTeam.players.find(p => p.id === playerId);
+                  const stats = currentInnings.batterStats[playerId];
+                  if (!player || !stats) return null;
+                  
+                  const strikeRate = stats.ballsFaced > 0 
+                    ? ((stats.runs / stats.ballsFaced) * 100).toFixed(1) 
+                    : '0.0';
+                  const isStriker = playerId === currentInnings.currentBatsmanId;
+                  const isNonStriker = playerId === currentInnings.nonStrikerBatsmanId;
+                  
+                  return (
+                    <TableRow key={playerId} className={isStriker ? 'bg-primary/10' : ''}>
+                      <TableCell className="font-medium text-xs md:text-sm whitespace-nowrap">
+                        {player.name}
+                        {isStriker && <span className="text-primary ml-1">*</span>}
+                        {isNonStriker && <span className="text-muted-foreground ml-1">†</span>}
+                        {stats.isOut && <span className="text-destructive ml-1">(OUT)</span>}
+                      </TableCell>
+                      <TableCell className="text-center font-bold text-xs md:text-sm">{stats.runs}</TableCell>
+                      <TableCell className="text-center text-xs md:text-sm">{stats.ballsFaced}</TableCell>
+                      <TableCell className="text-center text-xs md:text-sm">{stats.fours}</TableCell>
+                      <TableCell className="text-center text-xs md:text-sm">{stats.sixes}</TableCell>
+                      <TableCell className="text-center text-xs md:text-sm">{strikeRate}</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {currentInnings.battingOrder.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground text-xs md:text-sm">
+                      Select batsmen to start
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
       {/* Bowling Stats Table */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Bowling Figures</CardTitle>
+          <CardTitle className="text-base md:text-lg">Bowling Figures</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Bowler</TableHead>
-                <TableHead className="text-center">O</TableHead>
-                <TableHead className="text-center">R</TableHead>
-                <TableHead className="text-center">W</TableHead>
-                <TableHead className="text-center">WD</TableHead>
-                <TableHead className="text-center">NB</TableHead>
-                <TableHead className="text-center">Econ</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Object.entries(currentInnings.bowlerStats).map(([playerId, stats]) => {
-                const player = bowlingTeam.players.find(p => p.id === playerId);
-                if (!player) return null;
-                
-                const totalOvers = stats.overs + (stats.balls / 6);
-                const economy = totalOvers > 0 ? (stats.runs / totalOvers).toFixed(2) : '0.00';
-                const isBowling = playerId === currentInnings.currentBowlerId;
-                
-                return (
-                  <TableRow key={playerId} className={isBowling ? 'bg-primary/10' : ''}>
-                    <TableCell className="font-medium">
-                      {player.name}
-                      {isBowling && <span className="text-primary ml-1">*</span>}
-                    </TableCell>
-                    <TableCell className="text-center">{stats.overs}.{stats.balls}</TableCell>
-                    <TableCell className="text-center">{stats.runs}</TableCell>
-                    <TableCell className="text-center font-bold">{stats.wickets}</TableCell>
-                    <TableCell className="text-center">{stats.wides}</TableCell>
-                    <TableCell className="text-center">{stats.noBalls}</TableCell>
-                    <TableCell className="text-center">{economy}</TableCell>
-                  </TableRow>
-                );
-              })}
-              {Object.keys(currentInnings.bowlerStats).length === 0 && (
+        <CardContent className="p-2 md:p-6 pt-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    Select a bowler to start
-                  </TableCell>
+                  <TableHead className="text-xs md:text-sm">Bowler</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">O</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">R</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">W</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">WD</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">NB</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">Econ</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {Object.entries(currentInnings.bowlerStats).map(([playerId, stats]) => {
+                  const player = bowlingTeam.players.find(p => p.id === playerId);
+                  if (!player) return null;
+                  
+                  const totalOvers = stats.overs + (stats.balls / 6);
+                  const economy = totalOvers > 0 ? (stats.runs / totalOvers).toFixed(2) : '0.00';
+                  const isBowling = playerId === currentInnings.currentBowlerId;
+                  
+                  return (
+                    <TableRow key={playerId} className={isBowling ? 'bg-primary/10' : ''}>
+                      <TableCell className="font-medium text-xs md:text-sm whitespace-nowrap">
+                        {player.name}
+                        {isBowling && <span className="text-primary ml-1">*</span>}
+                      </TableCell>
+                      <TableCell className="text-center text-xs md:text-sm">{stats.overs}.{stats.balls}</TableCell>
+                      <TableCell className="text-center text-xs md:text-sm">{stats.runs}</TableCell>
+                      <TableCell className="text-center font-bold text-xs md:text-sm">{stats.wickets}</TableCell>
+                      <TableCell className="text-center text-xs md:text-sm">{stats.wides}</TableCell>
+                      <TableCell className="text-center text-xs md:text-sm">{stats.noBalls}</TableCell>
+                      <TableCell className="text-center text-xs md:text-sm">{economy}</TableCell>
+                    </TableRow>
+                  );
+                })}
+                {Object.keys(currentInnings.bowlerStats).length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground text-xs md:text-sm">
+                      Select a bowler to start
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
       {/* Scoring Buttons */}
       <Card>
-        <CardHeader>
-          <CardTitle>Scoring</CardTitle>
+        <CardHeader className="pb-2 md:pb-4">
+          <CardTitle className="text-base md:text-lg">Scoring</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 md:space-y-4">
           {/* Negative Runs */}
           <div>
-            <p className="text-sm text-muted-foreground mb-2">Penalty Runs</p>
-            <div className="grid grid-cols-2 gap-2">
+            <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">Penalty Runs</p>
+            <div className="grid grid-cols-2 gap-1.5 md:gap-2">
               {[-2, -1].map((runs) => (
                 <Button
                   key={runs}
                   variant="destructive"
-                  className="h-14 text-xl font-bold"
+                  className="h-11 md:h-14 text-lg md:text-xl font-bold"
                   onClick={() => handleAddBall(runs)}
                   disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
                 >
@@ -470,13 +474,13 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
 
           {/* Runs */}
           <div>
-            <p className="text-sm text-muted-foreground mb-2">Runs</p>
-            <div className="grid grid-cols-4 gap-2">
+            <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">Runs</p>
+            <div className="grid grid-cols-4 gap-1.5 md:gap-2">
               {[0, 1, 2, 3].map((runs) => (
                 <Button
                   key={runs}
                   variant="outline"
-                  className="h-14 text-xl font-bold"
+                  className="h-11 md:h-14 text-lg md:text-xl font-bold"
                   onClick={() => handleAddBall(runs)}
                   disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
                 >
@@ -488,17 +492,17 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
 
           {/* Boundaries */}
           <div>
-            <p className="text-sm text-muted-foreground mb-2">Boundaries</p>
-            <div className="grid grid-cols-2 gap-2">
+            <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">Boundaries</p>
+            <div className="grid grid-cols-2 gap-1.5 md:gap-2">
               <Button
-                className="h-14 text-xl font-bold bg-cricket-four hover:bg-cricket-four/90"
+                className="h-11 md:h-14 text-lg md:text-xl font-bold bg-cricket-four hover:bg-cricket-four/90"
                 onClick={() => handleAddBall(4)}
                 disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
               >
                 4
               </Button>
               <Button
-                className="h-14 text-xl font-bold bg-cricket-six hover:bg-cricket-six/90"
+                className="h-11 md:h-14 text-lg md:text-xl font-bold bg-cricket-six hover:bg-cricket-six/90"
                 onClick={() => handleAddBall(6)}
                 disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
               >
@@ -509,17 +513,17 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
 
           {/* Extras */}
           <div>
-            <p className="text-sm text-muted-foreground mb-2">Extras</p>
-            <div className="grid grid-cols-2 gap-2">
+            <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">Extras</p>
+            <div className="grid grid-cols-2 gap-1.5 md:gap-2">
               <Button
-                className="h-12 font-bold bg-cricket-extra text-black hover:bg-cricket-extra/90"
+                className="h-10 md:h-12 text-sm md:text-base font-bold bg-cricket-extra text-black hover:bg-cricket-extra/90"
                 onClick={() => handleAddBall(1, false, true, false)}
                 disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
               >
                 Wide
               </Button>
               <Button
-                className="h-12 font-bold bg-cricket-extra text-black hover:bg-cricket-extra/90"
+                className="h-10 md:h-12 text-sm md:text-base font-bold bg-cricket-extra text-black hover:bg-cricket-extra/90"
                 onClick={() => handleAddBall(1, false, false, true)}
                 disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
               >
@@ -531,7 +535,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
           {/* Wicket */}
           <Button
             variant="destructive"
-            className="w-full h-16 text-2xl font-bold"
+            className="w-full h-12 md:h-16 text-xl md:text-2xl font-bold"
             onClick={() => handleAddBall(0, true)}
             disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
           >
