@@ -254,7 +254,7 @@ export function useCricketStore() {
     return match.currentInnings === 1 ? match.innings1 : match.innings2;
   }, [matchState.currentMatch]);
 
-  const addBall = useCallback(async (runs: number, isWicket = false, isWide = false, isNoBall = false) => {
+  const addBall = useCallback(async (runs: number, isWicket = false, isWide = false, isNoBall = false, noStrikeChange = false) => {
     if (!matchState.currentMatch) return;
     
     const match = { ...matchState.currentMatch };
@@ -333,8 +333,8 @@ export function useCricketStore() {
       innings.bowlerStats = bowlerStats;
     }
 
-    // Rotate strike on odd runs (1, 3, 5)
-    if (runs % 2 === 1 && innings.currentBatsmanId && innings.nonStrikerBatsmanId) {
+    // Rotate strike on odd runs (1, 3, 5) unless noStrikeChange is set
+    if (!noStrikeChange && runs % 2 === 1 && innings.currentBatsmanId && innings.nonStrikerBatsmanId) {
       const temp = innings.currentBatsmanId;
       innings.currentBatsmanId = innings.nonStrikerBatsmanId;
       innings.nonStrikerBatsmanId = temp;

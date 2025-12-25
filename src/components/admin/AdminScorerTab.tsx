@@ -48,13 +48,13 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
   const target = match?.currentInnings === 2 && match.innings1 ? match.innings1.runs + 1 : null;
   const runsNeeded = target && currentInnings ? target - currentInnings.runs : null;
 
-  const handleAddBall = (runs: number, isWicket = false, isWide = false, isNoBall = false) => {
+  const handleAddBall = (runs: number, isWicket = false, isWide = false, isNoBall = false, noStrikeChange = false) => {
     if (!currentInnings?.currentBatsmanId || !currentInnings?.currentBowlerId) {
       toast.error('Please select batsman and bowler first');
       return;
     }
     
-    addBall(runs, isWicket, isWide, isNoBall);
+    addBall(runs, isWicket, isWide, isNoBall, noStrikeChange);
     if (isWicket) {
       triggerWicket();
     } else if (runs === 6) {
@@ -490,9 +490,9 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
               <Button
                 variant="outline"
                 className="h-11 md:h-14 text-sm md:text-lg font-bold border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                onClick={() => handleAddBall(1)}
+                onClick={() => handleAddBall(1, false, false, false, true)}
                 disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
-                title="1 Run Declared"
+                title="1 Run Declared (No Strike Change)"
               >
                 1D
               </Button>
