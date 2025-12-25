@@ -128,6 +128,42 @@ export type Database = {
         }
         Relationships: []
       }
+      tournament_state: {
+        Row: {
+          final_winner: string | null
+          id: string
+          qualified_a1: string | null
+          qualified_a2: string | null
+          qualified_b1: string | null
+          qualified_b2: string | null
+          sf1_winner: string | null
+          sf2_winner: string | null
+          updated_at: string
+        }
+        Insert: {
+          final_winner?: string | null
+          id?: string
+          qualified_a1?: string | null
+          qualified_a2?: string | null
+          qualified_b1?: string | null
+          qualified_b2?: string | null
+          sf1_winner?: string | null
+          sf2_winner?: string | null
+          updated_at?: string
+        }
+        Update: {
+          final_winner?: string | null
+          id?: string
+          qualified_a1?: string | null
+          qualified_a2?: string | null
+          qualified_b1?: string | null
+          qualified_b2?: string | null
+          sf1_winner?: string | null
+          sf2_winner?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
