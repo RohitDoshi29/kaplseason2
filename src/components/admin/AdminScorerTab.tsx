@@ -475,7 +475,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
           {/* Runs */}
           <div>
             <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">Runs</p>
-            <div className="grid grid-cols-4 gap-1.5 md:gap-2">
+            <div className="grid grid-cols-5 gap-1.5 md:gap-2">
               {[0, 1, 2, 3].map((runs) => (
                 <Button
                   key={runs}
@@ -487,6 +487,15 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                   {runs}
                 </Button>
               ))}
+              <Button
+                variant="outline"
+                className="h-11 md:h-14 text-sm md:text-lg font-bold border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                onClick={() => handleAddBall(1)}
+                disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+                title="1 Run Declared"
+              >
+                1D
+              </Button>
             </div>
           </div>
 
