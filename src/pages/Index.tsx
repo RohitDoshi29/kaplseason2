@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useCricketStore } from '@/hooks/useCricketStore';
 import { Header } from '@/components/cricket/Header';
 import { Navigation } from '@/components/cricket/Navigation';
@@ -6,10 +7,46 @@ import { BallTicker } from '@/components/cricket/BallTicker';
 import { OverTable } from '@/components/cricket/OverTable';
 import { PlayCircle } from 'lucide-react';
 import { MATCH_TYPE_LABELS } from '@/lib/cricketTypes';
+import { CricketAnimation, useCricketAnimation } from '@/components/cricket/CricketAnimations';
 
 const Index = () => {
   const { matchState, getTeam, isLoaded } = useCricketStore();
+  const { animation, triggerFour, triggerSix, triggerWicket, triggerWinner, clearAnimation } = useCricketAnimation();
+  const lastProcessedBallRef = useRef<string | null>(null);
   const match = matchState.currentMatch;
+
+  const team1 = match ? getTeam(match.team1Id) : null;
+  const team2 = match ? getTeam(match.team2Id) : null;
+  const currentInnings = match?.currentInnings === 1 ? match.innings1 : match?.innings2;
+  const allBalls = currentInnings?.overs.flatMap(o => o.balls) || [];
+
+  // Trigger animations for viewers based on last ball
+  useEffect(() => {
+    if (!allBalls.length) return;
+    
+    const lastBall = allBalls[allBalls.length - 1];
+    if (!lastBall || lastBall.id === lastProcessedBallRef.current) return;
+    
+    lastProcessedBallRef.current = lastBall.id;
+    
+    if (lastBall.isWicket) {
+      triggerWicket();
+    } else if (lastBall.runs === 6 && !lastBall.isExtra) {
+      triggerSix();
+    } else if (lastBall.runs === 4 && !lastBall.isExtra) {
+      triggerFour();
+    }
+  }, [allBalls, triggerFour, triggerSix, triggerWicket]);
+
+  // Trigger winner animation when match is completed
+  useEffect(() => {
+    if (match?.status === 'completed' && match.winner) {
+      const winnerTeam = getTeam(match.winner);
+      if (winnerTeam) {
+        triggerWinner(winnerTeam.name);
+      }
+    }
+  }, [match?.status, match?.winner, getTeam, triggerWinner]);
 
   if (!isLoaded) {
     return (
@@ -19,15 +56,16 @@ const Index = () => {
     );
   }
 
-  const team1 = match ? getTeam(match.team1Id) : null;
-  const team2 = match ? getTeam(match.team2Id) : null;
-  const currentInnings = match?.currentInnings === 1 ? match.innings1 : match?.innings2;
-  const allBalls = currentInnings?.overs.flatMap(o => o.balls) || [];
-
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-4">
-      <Navigation />
-      <Header />
+    <>
+      <CricketAnimation
+        type={animation.type}
+        teamName={animation.teamName}
+        onComplete={clearAnimation}
+      />
+      <div className="min-h-screen bg-background pb-20 md:pb-4">
+        <Navigation />
+        <Header />
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {match && team1 && team2 ? (
@@ -90,7 +128,8 @@ const Index = () => {
           </div>
         )}
       </main>
-    </div>
+      </div>
+    </>
   );
 };
 
