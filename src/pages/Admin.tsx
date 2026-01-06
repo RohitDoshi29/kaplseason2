@@ -3,21 +3,25 @@ import { AdminPasswordGate } from '@/components/cricket/AdminPasswordGate';
 import { Header } from '@/components/cricket/Header';
 import { Navigation } from '@/components/cricket/Navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, PlayCircle, Users, Settings, LogOut, Home, BarChart3, Trophy } from 'lucide-react';
+import { Shield, PlayCircle, Users, Settings, LogOut, Home, BarChart3, Trophy, EyeOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { useScorerRole } from '@/hooks/useScorerRole';
 import AdminScorerTab from '@/components/admin/AdminScorerTab';
+import SecondaryScorerTab from '@/components/admin/SecondaryScorerTab';
 import AdminMatchSetupTab from '@/components/admin/AdminMatchSetupTab';
 import AdminTeamsTab from '@/components/admin/AdminTeamsTab';
 import AdminSettingsTab from '@/components/admin/AdminSettingsTab';
 import PlayerStatsTab from '@/components/admin/PlayerStatsTab';
 import { AdminTournamentTab } from '@/components/admin/AdminTournamentTab';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
 
 export default function Admin() {
   const { signOut, user } = useAdminAuth();
-  const [activeTab, setActiveTab] = useState('scorer');
+  const { isPrimaryScorer, isSecondaryScorer, scorerRole } = useScorerRole();
+  const [activeTab, setActiveTab] = useState(isSecondaryScorer ? 'secondary-scorer' : 'scorer');
 
   return (
     <AdminPasswordGate>
@@ -57,35 +61,60 @@ export default function Admin() {
           </div>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6 max-w-3xl mx-auto">
-              <TabsTrigger value="scorer" className="gap-2">
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:inline">Scorer</span>
-              </TabsTrigger>
-              <TabsTrigger value="setup" className="gap-2">
-                <PlayCircle className="w-4 h-4" />
-                <span className="hidden sm:inline">Setup</span>
-              </TabsTrigger>
-              <TabsTrigger value="teams" className="gap-2">
-                <Users className="w-4 h-4" />
-                <span className="hidden sm:inline">Teams</span>
-              </TabsTrigger>
-              <TabsTrigger value="stats" className="gap-2">
-                <BarChart3 className="w-4 h-4" />
-                <span className="hidden sm:inline">Stats</span>
-              </TabsTrigger>
-              <TabsTrigger value="tournament" className="gap-2">
-                <Trophy className="w-4 h-4" />
-                <span className="hidden sm:inline">Bracket</span>
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="gap-2">
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline">Settings</span>
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center justify-between mb-2">
+              <TabsList className={`grid w-full max-w-3xl mx-auto ${isSecondaryScorer ? 'grid-cols-1' : 'grid-cols-7'}`}>
+                {isPrimaryScorer && (
+                  <>
+                    <TabsTrigger value="scorer" className="gap-2">
+                      <Shield className="w-4 h-4" />
+                      <span className="hidden sm:inline">Scorer</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="secondary-scorer" className="gap-2">
+                      <EyeOff className="w-4 h-4" />
+                      <span className="hidden sm:inline">2nd Scorer</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="setup" className="gap-2">
+                      <PlayCircle className="w-4 h-4" />
+                      <span className="hidden sm:inline">Setup</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="teams" className="gap-2">
+                      <Users className="w-4 h-4" />
+                      <span className="hidden sm:inline">Teams</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="stats" className="gap-2">
+                      <BarChart3 className="w-4 h-4" />
+                      <span className="hidden sm:inline">Stats</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="tournament" className="gap-2">
+                      <Trophy className="w-4 h-4" />
+                      <span className="hidden sm:inline">Bracket</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="settings" className="gap-2">
+                      <Settings className="w-4 h-4" />
+                      <span className="hidden sm:inline">Settings</span>
+                    </TabsTrigger>
+                  </>
+                )}
+                {isSecondaryScorer && (
+                  <TabsTrigger value="secondary-scorer" className="gap-2">
+                    <EyeOff className="w-4 h-4" />
+                    Secondary Scorer
+                  </TabsTrigger>
+                )}
+              </TabsList>
+              {scorerRole && (
+                <Badge variant="outline" className="ml-2 hidden md:flex">
+                  {scorerRole === 'admin' ? 'Admin' : scorerRole === 'primary_scorer' ? 'Primary Scorer' : 'Secondary Scorer'}
+                </Badge>
+              )}
+            </div>
 
             <TabsContent value="scorer">
               <AdminScorerTab onNavigateToSetup={() => setActiveTab('setup')} />
+            </TabsContent>
+
+            <TabsContent value="secondary-scorer">
+              <SecondaryScorerTab />
             </TabsContent>
 
             <TabsContent value="setup">
