@@ -32,6 +32,9 @@ export default function PointsTable() {
           wins: teamStats?.wins || 0,
           losses: teamStats?.losses || 0,
           totalRuns: teamStats?.totalRuns || 0,
+          totalFours: teamStats?.totalFours || 0,
+          totalSixes: teamStats?.totalSixes || 0,
+          totalWickets: teamStats?.totalWickets || 0,
         };
       })
       .sort((a, b) => b.totalRuns - a.totalRuns);
@@ -61,6 +64,9 @@ export default function PointsTable() {
                   <TableHead className="text-center text-xs md:text-sm">M</TableHead>
                   <TableHead className="text-center text-xs md:text-sm">W</TableHead>
                   <TableHead className="text-center text-xs md:text-sm">L</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">4s</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">6s</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">Wkts</TableHead>
                   <TableHead className="text-right text-xs md:text-sm">Runs</TableHead>
                 </TableRow>
               </TableHeader>
@@ -75,6 +81,9 @@ export default function PointsTable() {
                     <TableCell className="text-center text-xs md:text-sm">{item.matchesPlayed}</TableCell>
                     <TableCell className="text-center text-green-600 font-semibold text-xs md:text-sm">{item.wins}</TableCell>
                     <TableCell className="text-center text-destructive font-semibold text-xs md:text-sm">{item.losses}</TableCell>
+                    <TableCell className="text-center text-xs md:text-sm text-amber-600 font-medium">{item.totalFours}</TableCell>
+                    <TableCell className="text-center text-xs md:text-sm text-purple-600 font-medium">{item.totalSixes}</TableCell>
+                    <TableCell className="text-center text-xs md:text-sm text-red-600 font-medium">{item.totalWickets}</TableCell>
                     <TableCell
                       className={cn(
                         'text-right font-bold text-sm md:text-lg',
