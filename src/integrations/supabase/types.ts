@@ -92,6 +92,27 @@ export type Database = {
         }
         Relationships: []
       }
+      secondary_match_state: {
+        Row: {
+          current_match: Json | null
+          id: string
+          last_action: Json | null
+          updated_at: string
+        }
+        Insert: {
+          current_match?: Json | null
+          id?: string
+          last_action?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          current_match?: Json | null
+          id?: string
+          last_action?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       teams: {
         Row: {
           created_at: string
@@ -198,6 +219,8 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
+      is_primary_scorer: { Args: never; Returns: boolean }
+      is_secondary_scorer: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "primary_scorer" | "secondary_scorer"
