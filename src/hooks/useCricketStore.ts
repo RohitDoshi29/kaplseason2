@@ -557,17 +557,55 @@ export function useCricketStore() {
     const stats: Map<string, TeamStats> = new Map();
     
     teams.forEach(team => {
-      stats.set(team.id, { teamId: team.id, matchesPlayed: 0, wins: 0, losses: 0, totalRuns: 0 });
+      stats.set(team.id, { 
+        teamId: team.id, 
+        matchesPlayed: 0, 
+        wins: 0, 
+        losses: 0, 
+        totalRuns: 0,
+        totalFours: 0,
+        totalSixes: 0,
+        totalWickets: 0,
+      });
     });
+
+    // Helper to count boundaries from innings batter stats
+    const countBoundaries = (innings: Innings | null) => {
+      if (!innings?.batterStats) return { fours: 0, sixes: 0 };
+      let fours = 0;
+      let sixes = 0;
+      Object.values(innings.batterStats).forEach(stats => {
+        fours += stats.fours || 0;
+        sixes += stats.sixes || 0;
+      });
+      return { fours, sixes };
+    };
+
+    // Helper to count wickets from innings bowler stats
+    const countWickets = (innings: Innings | null) => {
+      if (!innings?.bowlerStats) return 0;
+      return Object.values(innings.bowlerStats).reduce((total, stats) => total + (stats.wickets || 0), 0);
+    };
 
     matchHistory.forEach(match => {
       if (match.status === 'completed') {
         const team1Stats = stats.get(match.team1Id);
         const team2Stats = stats.get(match.team2Id);
         
+        // Team 1 batting stats from innings1, bowling stats from innings2
+        const team1Batting = countBoundaries(match.innings1 as Innings | null);
+        const team1Bowling = countWickets(match.innings2 as Innings | null);
+        
+        // Team 2 batting stats from innings2, bowling stats from innings1
+        const team2Batting = countBoundaries(match.innings2 as Innings | null);
+        const team2Bowling = countWickets(match.innings1 as Innings | null);
+        
         if (team1Stats) {
           team1Stats.matchesPlayed += 1;
           team1Stats.totalRuns += match.innings1?.runs || 0;
+          team1Stats.totalFours += team1Batting.fours;
+          team1Stats.totalSixes += team1Batting.sixes;
+          team1Stats.totalWickets += team1Bowling;
           if (match.winner === match.team1Id) {
             team1Stats.wins += 1;
           } else if (match.winner) {
@@ -577,6 +615,9 @@ export function useCricketStore() {
         if (team2Stats) {
           team2Stats.matchesPlayed += 1;
           team2Stats.totalRuns += match.innings2?.runs || 0;
+          team2Stats.totalFours += team2Batting.fours;
+          team2Stats.totalSixes += team2Batting.sixes;
+          team2Stats.totalWickets += team2Bowling;
           if (match.winner === match.team2Id) {
             team2Stats.wins += 1;
           } else if (match.winner) {

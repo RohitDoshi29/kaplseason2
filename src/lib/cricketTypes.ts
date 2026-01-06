@@ -101,6 +101,9 @@ export interface TeamStats {
   wins: number;
   losses: number;
   totalRuns: number;
+  totalFours: number;
+  totalSixes: number;
+  totalWickets: number;
 }
 
 const createDefaultPlayers = (teamId: string, count: number = 10): Player[] => 
