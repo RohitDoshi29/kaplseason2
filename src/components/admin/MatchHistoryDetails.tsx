@@ -4,6 +4,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { Download } from 'lucide-react';
+import { exportMatchToExcel } from '@/lib/exportMatchToExcel';
 
 interface MatchHistoryDetailsProps {
   match: Match | null;
@@ -182,15 +185,27 @@ export default function MatchHistoryDetails({ match, getTeam, open, onOpenChange
     );
   };
 
+  const handleExport = () => {
+    if (team1 && team2) {
+      exportMatchToExcel(match, team1, team2);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <span>{team1?.name} vs {team2?.name}</span>
-            {winnerTeam && (
-              <Badge className="bg-primary">{winnerTeam.name} Won</Badge>
-            )}
+            <div className="flex items-center gap-2">
+              {winnerTeam && (
+                <Badge className="bg-primary">{winnerTeam.name} Won</Badge>
+              )}
+              <Button variant="outline" size="sm" onClick={handleExport} className="gap-1">
+                <Download className="w-4 h-4" />
+                Excel
+              </Button>
+            </div>
           </DialogTitle>
         </DialogHeader>
         
