@@ -472,6 +472,98 @@ export function useCricketStore() {
     await saveMatchState(newState);
   }, [matchState, saveMatchState]);
 
+  // Undo multiple balls by restoring to a specific state
+  const undoToBall = useCallback(async (overIndex: number, ballIndex: number) => {
+    if (!matchState.currentMatch) return;
+    
+    const match = { ...matchState.currentMatch };
+    const innings = match.currentInnings === 1 ? { ...match.innings1! } : { ...match.innings2! };
+    
+    // Get total balls to undo
+    const overs = [...innings.overs];
+    let ballsToRemove: Ball[] = [];
+    
+    // Collect balls to remove (from end back to specified position)
+    for (let i = overs.length - 1; i >= overIndex; i--) {
+      const over = overs[i];
+      const startBall = i === overIndex ? ballIndex + 1 : 0;
+      for (let j = over.balls.length - 1; j >= startBall; j--) {
+        ballsToRemove.push(over.balls[j]);
+      }
+    }
+    
+    // Revert stats for each ball
+    ballsToRemove.forEach(ball => {
+      // Revert innings stats
+      innings.runs -= ball.runs;
+      if (ball.isWicket) innings.wickets -= 1;
+      
+      // Revert batter stats
+      if (ball.batsmanId && !ball.isWide && innings.batterStats[ball.batsmanId]) {
+        const stats = { ...innings.batterStats[ball.batsmanId] };
+        stats.runs -= ball.isNoBall ? 0 : ball.runs;
+        stats.ballsFaced -= 1;
+        if (ball.runs === 4 && !ball.isWide && !ball.isNoBall) stats.fours -= 1;
+        if (ball.runs === 6 && !ball.isWide && !ball.isNoBall) stats.sixes -= 1;
+        if (ball.isWicket) {
+          stats.isOut = false;
+          stats.dismissalType = undefined;
+        }
+        innings.batterStats[ball.batsmanId] = stats;
+      }
+      
+      // Revert bowler stats
+      if (ball.bowlerId && innings.bowlerStats[ball.bowlerId]) {
+        const stats = { ...innings.bowlerStats[ball.bowlerId] };
+        stats.runs -= ball.runs;
+        if (ball.isWicket) stats.wickets -= 1;
+        if (ball.isWide) stats.wides -= 1;
+        if (ball.isNoBall) stats.noBalls -= 1;
+        
+        if (!ball.isWide && !ball.isNoBall) {
+          if (stats.balls === 0 && stats.overs > 0) {
+            stats.overs -= 1;
+            stats.balls = 5;
+          } else {
+            stats.balls -= 1;
+          }
+        }
+        innings.bowlerStats[ball.bowlerId] = stats;
+      }
+    });
+    
+    // Remove balls from overs
+    for (let i = overs.length - 1; i >= overIndex; i--) {
+      if (i === overIndex) {
+        overs[i] = { ...overs[i], balls: overs[i].balls.slice(0, ballIndex + 1) };
+      } else if (i > overIndex) {
+        // Remove entire over if it's after the target
+        overs.splice(i, 1);
+      }
+    }
+    
+    // Recalculate current over/ball
+    const lastOver = overs[overs.length - 1];
+    const legalBalls = lastOver.balls.filter(b => !b.isWide && !b.isNoBall).length;
+    innings.currentOver = overs.length - 1;
+    innings.currentBall = legalBalls;
+    innings.overs = overs;
+    
+    if (match.currentInnings === 1) {
+      match.innings1 = innings;
+    } else {
+      match.innings2 = innings;
+    }
+    
+    const newState = {
+      currentMatch: match,
+      lastAction: null,
+    };
+    
+    setMatchState(newState);
+    await saveMatchState(newState);
+  }, [matchState, saveMatchState]);
+
   const switchBattingTeam = useCallback(async () => {
     if (!matchState.currentMatch) return;
     
@@ -566,6 +658,11 @@ export function useCricketStore() {
         totalFours: 0,
         totalSixes: 0,
         totalWickets: 0,
+        runsScored: 0,
+        oversPlayed: 0,
+        runsConceded: 0,
+        oversBowled: 0,
+        nrr: 0,
       });
     });
 
@@ -587,25 +684,42 @@ export function useCricketStore() {
       return Object.values(innings.bowlerStats).reduce((total, stats) => total + (stats.wickets || 0), 0);
     };
 
+    // Helper to calculate overs in decimal format
+    const getOversDecimal = (innings: Innings | null) => {
+      if (!innings) return 0;
+      return innings.currentOver + (innings.currentBall / 6);
+    };
+
     matchHistory.forEach(match => {
       if (match.status === 'completed') {
         const team1Stats = stats.get(match.team1Id);
         const team2Stats = stats.get(match.team2Id);
         
+        const innings1 = match.innings1 as Innings | null;
+        const innings2 = match.innings2 as Innings | null;
+        
         // Team 1 batting stats from innings1, bowling stats from innings2
-        const team1Batting = countBoundaries(match.innings1 as Innings | null);
-        const team1Bowling = countWickets(match.innings2 as Innings | null);
+        const team1Batting = countBoundaries(innings1);
+        const team1Bowling = countWickets(innings2);
+        const team1OversPlayed = getOversDecimal(innings1);
+        const team1OversBowled = getOversDecimal(innings2);
         
         // Team 2 batting stats from innings2, bowling stats from innings1
-        const team2Batting = countBoundaries(match.innings2 as Innings | null);
-        const team2Bowling = countWickets(match.innings1 as Innings | null);
+        const team2Batting = countBoundaries(innings2);
+        const team2Bowling = countWickets(innings1);
+        const team2OversPlayed = getOversDecimal(innings2);
+        const team2OversBowled = getOversDecimal(innings1);
         
         if (team1Stats) {
           team1Stats.matchesPlayed += 1;
-          team1Stats.totalRuns += match.innings1?.runs || 0;
+          team1Stats.totalRuns += innings1?.runs || 0;
           team1Stats.totalFours += team1Batting.fours;
           team1Stats.totalSixes += team1Batting.sixes;
           team1Stats.totalWickets += team1Bowling;
+          team1Stats.runsScored += innings1?.runs || 0;
+          team1Stats.oversPlayed += team1OversPlayed;
+          team1Stats.runsConceded += innings2?.runs || 0;
+          team1Stats.oversBowled += team1OversBowled;
           if (match.winner === match.team1Id) {
             team1Stats.wins += 1;
           } else if (match.winner) {
@@ -614,16 +728,29 @@ export function useCricketStore() {
         }
         if (team2Stats) {
           team2Stats.matchesPlayed += 1;
-          team2Stats.totalRuns += match.innings2?.runs || 0;
+          team2Stats.totalRuns += innings2?.runs || 0;
           team2Stats.totalFours += team2Batting.fours;
           team2Stats.totalSixes += team2Batting.sixes;
           team2Stats.totalWickets += team2Bowling;
+          team2Stats.runsScored += innings2?.runs || 0;
+          team2Stats.oversPlayed += team2OversPlayed;
+          team2Stats.runsConceded += innings1?.runs || 0;
+          team2Stats.oversBowled += team2OversBowled;
           if (match.winner === match.team2Id) {
             team2Stats.wins += 1;
           } else if (match.winner) {
             team2Stats.losses += 1;
           }
         }
+      }
+    });
+
+    // Calculate NRR for each team
+    stats.forEach((teamStats) => {
+      if (teamStats.oversPlayed > 0 && teamStats.oversBowled > 0) {
+        const runRate = teamStats.runsScored / teamStats.oversPlayed;
+        const concededRate = teamStats.runsConceded / teamStats.oversBowled;
+        teamStats.nrr = runRate - concededRate;
       }
     });
 
@@ -686,6 +813,7 @@ export function useCricketStore() {
     selectBatsman,
     selectBowler,
     undoLastBall,
+    undoToBall,
     switchBattingTeam,
     swapStrike,
     endMatch,

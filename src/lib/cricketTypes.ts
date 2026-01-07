@@ -104,6 +104,12 @@ export interface TeamStats {
   totalFours: number;
   totalSixes: number;
   totalWickets: number;
+  // NRR calculation fields
+  runsScored: number;
+  oversPlayed: number; // in decimal format (e.g., 10.3 overs)
+  runsConceded: number;
+  oversBowled: number; // in decimal format
+  nrr: number; // Net Run Rate
 }
 
 const createDefaultPlayers = (teamId: string, count: number = 10): Player[] => 

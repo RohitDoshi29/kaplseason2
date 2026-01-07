@@ -22,17 +22,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Undo2, RefreshCw, Flag, PlayCircle, Target, User, ArrowLeftRight, History, Eye } from 'lucide-react';
+import { Undo2, RefreshCw, Flag, PlayCircle, Target, User, ArrowLeftRight, History, Eye, RotateCcw } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Match } from '@/lib/cricketTypes';
+import { Match, Ball } from '@/lib/cricketTypes';
 import MatchHistoryDetails from './MatchHistoryDetails';
 import { CricketAnimation, useCricketAnimation } from '@/components/cricket/CricketAnimations';
+import { OverTable } from '@/components/cricket/OverTable';
+import { cn } from '@/lib/utils';
 interface AdminScorerTabProps {
   onNavigateToSetup: () => void;
 }
 
 export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProps) {
-  const { matchState, matchHistory, getTeam, addBall, undoLastBall, switchBattingTeam, swapStrike, endMatch, selectBatsman, selectBowler } = useCricketStore();
+  const { matchState, matchHistory, getTeam, addBall, undoLastBall, undoToBall, switchBattingTeam, swapStrike, endMatch, selectBatsman, selectBowler } = useCricketStore();
   const match = matchState.currentMatch;
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -550,6 +552,93 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
           >
             WICKET
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Over-by-Over Breakdown with Undo */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base md:text-lg flex items-center gap-2">
+            <RotateCcw className="w-5 h-5" />
+            Over Breakdown (Click ball to undo from that point)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-2 md:p-6 pt-0">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="w-12 md:w-20 text-xs md:text-sm">Over</TableHead>
+                  <TableHead className="text-xs md:text-sm">Ball by Ball (click to undo)</TableHead>
+                  <TableHead className="w-12 md:w-20 text-right text-xs md:text-sm">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {currentInnings.overs.map((over, overIndex) => (
+                  <TableRow key={overIndex}>
+                    <TableCell className="font-medium text-xs md:text-sm">{over.number}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1 md:gap-2 flex-wrap">
+                        {over.balls.map((ball, ballIndex) => {
+                          const getBallDisplay = () => {
+                            if (ball.isWicket) return 'W';
+                            if (ball.isWide) return `${ball.runs}Wd`;
+                            if (ball.isNoBall) return `${ball.runs}Nb`;
+                            return ball.runs.toString();
+                          };
+                          const getBallClass = () => {
+                            if (ball.isWicket) return 'text-destructive font-bold';
+                            if (ball.runs === 4) return 'text-cricket-four font-bold';
+                            if (ball.runs === 6) return 'text-cricket-six font-bold';
+                            return '';
+                          };
+                          return (
+                            <AlertDialog key={ball.id}>
+                              <AlertDialogTrigger asChild>
+                                <button
+                                  className={cn(
+                                    'inline-flex items-center justify-center w-6 h-6 md:w-7 md:h-7 rounded-full bg-muted text-xs md:text-sm cursor-pointer hover:ring-2 hover:ring-destructive transition-all',
+                                    getBallClass()
+                                  )}
+                                >
+                                  {getBallDisplay()}
+                                </button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Undo from this ball?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will remove all balls after Over {over.number}, Ball {ballIndex + 1} (including this ball). This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => {
+                                      undoToBall(overIndex, ballIndex - 1);
+                                      toast.info(`Undone from Over ${over.number}, Ball ${ballIndex + 1}`);
+                                    }}
+                                  >
+                                    Undo
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          );
+                        })}
+                        {over.balls.length === 0 && (
+                          <span className="text-muted-foreground text-xs md:text-sm">-</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-bold text-xs md:text-sm">
+                      {over.balls.reduce((sum, ball) => sum + ball.runs, 0)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
