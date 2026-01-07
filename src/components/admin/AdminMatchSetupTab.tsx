@@ -25,10 +25,14 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
   const [selectedGroup, setSelectedGroup] = useState<'A' | 'B'>('A');
   const [team1Id, setTeam1Id] = useState<string>('');
   const [team2Id, setTeam2Id] = useState<string>('');
+  const [tossWinner, setTossWinner] = useState<'team1' | 'team2' | ''>('');
+  const [tossDecision, setTossDecision] = useState<'bat' | 'bowl' | ''>('');
   const [matchType, setMatchType] = useState<'group' | 'knockout'>('group');
   const [knockoutType, setKnockoutType] = useState<'semi_final_1' | 'semi_final_2' | 'final'>('semi_final_1');
   const [knockoutTeam1Id, setKnockoutTeam1Id] = useState<string>('');
   const [knockoutTeam2Id, setKnockoutTeam2Id] = useState<string>('');
+  const [knockoutTossWinner, setKnockoutTossWinner] = useState<'team1' | 'team2' | ''>('');
+  const [knockoutTossDecision, setKnockoutTossDecision] = useState<'bat' | 'bowl' | ''>('');
 
   const groupTeams = getTeamsByGroup(selectedGroup);
   const team1 = team1Id ? getTeam(team1Id) : null;
@@ -40,6 +44,17 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
     setSelectedGroup(group);
     setTeam1Id('');
     setTeam2Id('');
+    setTossWinner('');
+    setTossDecision('');
+  };
+
+  // Determine batting order based on toss
+  const getBattingOrder = (t1Id: string, t2Id: string, winner: 'team1' | 'team2', decision: 'bat' | 'bowl') => {
+    const battingFirst = decision === 'bat' ? winner : (winner === 'team1' ? 'team2' : 'team1');
+    if (battingFirst === 'team1') {
+      return { battingTeamId: t1Id, bowlingTeamId: t2Id };
+    }
+    return { battingTeamId: t2Id, bowlingTeamId: t1Id };
   };
 
   const handleStartGroupMatch = () => {
@@ -51,7 +66,12 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
       toast.error('Please select different teams');
       return;
     }
-    startMatch(selectedGroup, team1Id, team2Id, 'group');
+    if (!tossWinner || !tossDecision) {
+      toast.error('Please complete toss details');
+      return;
+    }
+    const { battingTeamId, bowlingTeamId } = getBattingOrder(team1Id, team2Id, tossWinner, tossDecision);
+    startMatch(selectedGroup, battingTeamId, bowlingTeamId, 'group');
     toast.success('Group match started!');
     onNavigateToScorer();
   };
@@ -65,8 +85,13 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
       toast.error('Please select different teams');
       return;
     }
+    if (!knockoutTossWinner || !knockoutTossDecision) {
+      toast.error('Please complete toss details');
+      return;
+    }
+    const { battingTeamId, bowlingTeamId } = getBattingOrder(knockoutTeam1Id, knockoutTeam2Id, knockoutTossWinner, knockoutTossDecision);
     // Use 'A' as default group for knockout matches
-    startMatch('A', knockoutTeam1Id, knockoutTeam2Id, knockoutType);
+    startMatch('A', battingTeamId, bowlingTeamId, knockoutType);
     toast.success(`${MATCH_TYPE_LABELS[knockoutType]} started!`);
     onNavigateToScorer();
   };
@@ -145,8 +170,8 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
 
               {/* Team 1 */}
               <div className="space-y-2">
-                <Label>Team 1 (Batting First)</Label>
-                <Select value={team1Id} onValueChange={setTeam1Id}>
+                <Label>Team 1</Label>
+                <Select value={team1Id} onValueChange={(v) => { setTeam1Id(v); setTossWinner(''); setTossDecision(''); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
@@ -169,7 +194,7 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
               {/* Team 2 */}
               <div className="space-y-2">
                 <Label>Team 2</Label>
-                <Select value={team2Id} onValueChange={setTeam2Id}>
+                <Select value={team2Id} onValueChange={(v) => { setTeam2Id(v); setTossWinner(''); setTossDecision(''); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
@@ -189,6 +214,59 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
                 </Select>
               </div>
 
+              {/* Toss Section */}
+              {team1 && team2 && (
+                <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
+                  <p className="text-sm font-medium text-center">Toss Details</p>
+                  <div className="space-y-2">
+                    <Label>Who won the toss?</Label>
+                    <Select value={tossWinner} onValueChange={(v) => setTossWinner(v as 'team1' | 'team2')}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select toss winner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="team1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: `hsl(${team1.primaryColor})` }} />
+                            {team1.name}
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="team2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: `hsl(${team2.primaryColor})` }} />
+                            {team2.name}
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {tossWinner && (
+                    <div className="space-y-2">
+                      <Label>{tossWinner === 'team1' ? team1.name : team2.name} elected to?</Label>
+                      <Select value={tossDecision} onValueChange={(v) => setTossDecision(v as 'bat' | 'bowl')}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select decision" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bat">Bat First</SelectItem>
+                          <SelectItem value="bowl">Bowl First</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {tossWinner && tossDecision && (
+                    <p className="text-sm text-center text-muted-foreground">
+                      {tossDecision === 'bat' 
+                        ? (tossWinner === 'team1' ? team1.name : team2.name) 
+                        : (tossWinner === 'team1' ? team2.name : team1.name)
+                      } will bat first
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Preview */}
               {team1 && team2 && (
                 <div className="py-4 border-t">
@@ -204,7 +282,7 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
               <Button
                 className="w-full h-12 gap-2"
                 onClick={handleStartGroupMatch}
-                disabled={!team1Id || !team2Id || team1Id === team2Id}
+                disabled={!team1Id || !team2Id || team1Id === team2Id || !tossWinner || !tossDecision}
               >
                 <PlayCircle className="w-5 h-5" />
                 Start Group Match
@@ -245,8 +323,8 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
 
               {/* Team 1 (from all teams) */}
               <div className="space-y-2">
-                <Label>Team 1 (Batting First)</Label>
-                <Select value={knockoutTeam1Id} onValueChange={setKnockoutTeam1Id}>
+                <Label>Team 1</Label>
+                <Select value={knockoutTeam1Id} onValueChange={(v) => { setKnockoutTeam1Id(v); setKnockoutTossWinner(''); setKnockoutTossDecision(''); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
@@ -270,7 +348,7 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
               {/* Team 2 */}
               <div className="space-y-2">
                 <Label>Team 2</Label>
-                <Select value={knockoutTeam2Id} onValueChange={setKnockoutTeam2Id}>
+                <Select value={knockoutTeam2Id} onValueChange={(v) => { setKnockoutTeam2Id(v); setKnockoutTossWinner(''); setKnockoutTossDecision(''); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
@@ -291,6 +369,59 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
                 </Select>
               </div>
 
+              {/* Toss Section for Knockout */}
+              {knockoutTeam1 && knockoutTeam2 && (
+                <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
+                  <p className="text-sm font-medium text-center">Toss Details</p>
+                  <div className="space-y-2">
+                    <Label>Who won the toss?</Label>
+                    <Select value={knockoutTossWinner} onValueChange={(v) => setKnockoutTossWinner(v as 'team1' | 'team2')}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select toss winner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="team1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: `hsl(${knockoutTeam1.primaryColor})` }} />
+                            {knockoutTeam1.name}
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="team2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: `hsl(${knockoutTeam2.primaryColor})` }} />
+                            {knockoutTeam2.name}
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {knockoutTossWinner && (
+                    <div className="space-y-2">
+                      <Label>{knockoutTossWinner === 'team1' ? knockoutTeam1.name : knockoutTeam2.name} elected to?</Label>
+                      <Select value={knockoutTossDecision} onValueChange={(v) => setKnockoutTossDecision(v as 'bat' | 'bowl')}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select decision" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bat">Bat First</SelectItem>
+                          <SelectItem value="bowl">Bowl First</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {knockoutTossWinner && knockoutTossDecision && (
+                    <p className="text-sm text-center text-muted-foreground">
+                      {knockoutTossDecision === 'bat' 
+                        ? (knockoutTossWinner === 'team1' ? knockoutTeam1.name : knockoutTeam2.name) 
+                        : (knockoutTossWinner === 'team1' ? knockoutTeam2.name : knockoutTeam1.name)
+                      } will bat first
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Preview */}
               {knockoutTeam1 && knockoutTeam2 && (
                 <div className="py-4 border-t">
@@ -308,7 +439,7 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
               <Button
                 className="w-full h-12 gap-2"
                 onClick={handleStartKnockoutMatch}
-                disabled={!knockoutTeam1Id || !knockoutTeam2Id || knockoutTeam1Id === knockoutTeam2Id}
+                disabled={!knockoutTeam1Id || !knockoutTeam2Id || knockoutTeam1Id === knockoutTeam2Id || !knockoutTossWinner || !knockoutTossDecision}
               >
                 <Trophy className="w-5 h-5" />
                 Start {MATCH_TYPE_LABELS[knockoutType]}
