@@ -1,11 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, Shield, Trophy, GitBranch } from 'lucide-react';
+import { Home, Shield, Trophy, GitBranch, Users } from 'lucide-react';
 
 const navItems = [
   { path: '/', label: 'Live', icon: Home },
   { path: '/admin', label: 'Admin', icon: Shield },
   { path: '/points', label: 'Points', icon: Trophy },
+  { path: '/stats', label: 'Stats', icon: Users },
   { path: '/bracket', label: 'Bracket', icon: GitBranch },
 ];
 

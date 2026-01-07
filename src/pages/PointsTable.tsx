@@ -35,9 +35,14 @@ export default function PointsTable() {
           totalFours: teamStats?.totalFours || 0,
           totalSixes: teamStats?.totalSixes || 0,
           totalWickets: teamStats?.totalWickets || 0,
+          nrr: teamStats?.nrr || 0,
         };
       })
-      .sort((a, b) => b.totalRuns - a.totalRuns);
+      // Sort by wins first, then NRR for tiebreaker
+      .sort((a, b) => {
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        return b.nrr - a.nrr;
+      });
   };
 
   const renderTable = (title: string, groupTeams: typeof teams) => {
@@ -67,6 +72,7 @@ export default function PointsTable() {
                   <TableHead className="text-center text-xs md:text-sm">4s</TableHead>
                   <TableHead className="text-center text-xs md:text-sm">6s</TableHead>
                   <TableHead className="text-center text-xs md:text-sm">Wkts</TableHead>
+                  <TableHead className="text-center text-xs md:text-sm">NRR</TableHead>
                   <TableHead className="text-right text-xs md:text-sm">Runs</TableHead>
                 </TableRow>
               </TableHeader>
@@ -84,6 +90,14 @@ export default function PointsTable() {
                     <TableCell className="text-center text-xs md:text-sm text-amber-600 font-medium">{item.totalFours}</TableCell>
                     <TableCell className="text-center text-xs md:text-sm text-purple-600 font-medium">{item.totalSixes}</TableCell>
                     <TableCell className="text-center text-xs md:text-sm text-red-600 font-medium">{item.totalWickets}</TableCell>
+                    <TableCell
+                      className={cn(
+                        'text-center text-xs md:text-sm font-semibold',
+                        item.nrr > 0 ? 'text-green-600' : item.nrr < 0 ? 'text-destructive' : ''
+                      )}
+                    >
+                      {item.nrr > 0 ? '+' : ''}{item.nrr.toFixed(3)}
+                    </TableCell>
                     <TableCell
                       className={cn(
                         'text-right font-bold text-sm md:text-lg',
