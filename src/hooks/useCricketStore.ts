@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Team, Match, MatchState, TeamStats, DEFAULT_TEAMS, Ball, Over, Player, Innings, MatchType } from '@/lib/cricketTypes';
 import { MATCH_CONSTANTS } from '@/lib/matchConstants';
 import type { Json } from '@/integrations/supabase/types';
+import { toast } from 'sonner';
 
 // Helper to convert DB team to app Team
 const dbToTeam = (dbTeam: any): Team => ({
@@ -687,6 +688,81 @@ export function useCricketStore() {
     }
   }, [matchState, saveMatchState]);
 
+  // Replace a player who retired/injured mid-match
+  const replacePlayer = useCallback(async (oldPlayerId: string, newPlayerId: string, teamId: string) => {
+    if (!matchState.currentMatch) return;
+    
+    const match = { ...matchState.currentMatch };
+    const innings = match.currentInnings === 1 ? { ...match.innings1! } : { ...match.innings2! };
+    
+    // Check if the player is currently batting or bowling
+    const isBatting = innings.battingTeamId === teamId;
+    
+    if (isBatting) {
+      // Transfer batting stats to new player
+      if (innings.batterStats[oldPlayerId]) {
+        const oldStats = { ...innings.batterStats[oldPlayerId] };
+        // Mark old player as retired
+        oldStats.isOut = true;
+        oldStats.dismissalType = 'retired';
+        innings.batterStats[oldPlayerId] = oldStats;
+      }
+      
+      // If old player was striking or non-striking, replace with new player
+      if (innings.currentBatsmanId === oldPlayerId) {
+        innings.currentBatsmanId = newPlayerId;
+      }
+      if (innings.nonStrikerBatsmanId === oldPlayerId) {
+        innings.nonStrikerBatsmanId = newPlayerId;
+      }
+      
+      // Initialize new player stats
+      if (!innings.batterStats[newPlayerId]) {
+        innings.batterStats[newPlayerId] = {
+          runs: 0,
+          ballsFaced: 0,
+          fours: 0,
+          sixes: 0,
+          isOut: false,
+        };
+      }
+      
+      // Add to batting order if not already there
+      if (!innings.battingOrder.includes(newPlayerId)) {
+        innings.battingOrder = [...innings.battingOrder, newPlayerId];
+      }
+    } else {
+      // For bowler replacement
+      if (innings.currentBowlerId === oldPlayerId) {
+        innings.currentBowlerId = newPlayerId;
+      }
+      
+      // Note: We don't transfer bowler stats - the new bowler starts fresh
+      if (!innings.bowlerStats[newPlayerId]) {
+        innings.bowlerStats[newPlayerId] = {
+          overs: 0,
+          balls: 0,
+          runs: 0,
+          wickets: 0,
+          wides: 0,
+          noBalls: 0,
+        };
+      }
+    }
+    
+    if (match.currentInnings === 1) {
+      match.innings1 = innings;
+    } else {
+      match.innings2 = innings;
+    }
+    
+    const newState = { currentMatch: match, lastAction: null };
+    setMatchState(newState);
+    await saveMatchState(newState);
+    
+    toast.success('Player replaced successfully');
+  }, [matchState, saveMatchState]);
+
   const endMatch = useCallback(async () => {
     if (!matchState.currentMatch) return;
     
@@ -902,6 +978,7 @@ export function useCricketStore() {
     switchBattingTeam,
     swapStrike,
     endMatch,
+    replacePlayer,
     getTeamStats,
     formatOvers,
     resetSeason,
