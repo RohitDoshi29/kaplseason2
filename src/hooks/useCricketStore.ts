@@ -314,16 +314,21 @@ export function useCricketStore() {
       return; // Max wickets reached
     }
 
-    // For no-ball, add 1 extra run plus any runs scored
-    const totalRuns = isNoBall ? runs + 1 : runs;
+    // Check if previous ball was a no-ball (this ball is the runs scored on that no-ball)
+    const isPendingNoBallRuns = (innings as any).pendingNoBallRuns === true;
+    
+    // For no-ball, add 1 run only (runs scored will be next ball)
+    // For pending no-ball runs, add the runs but don't count as legal ball
+    const totalRuns = isNoBall ? 1 : runs;
+    const isLegalBall = !isWide && !isNoBall && !isPendingNoBallRuns;
 
     const ball: Ball = {
       id: Date.now().toString(),
       runs: totalRuns,
       isWicket,
       isWide,
-      isNoBall,
-      isExtra: isWide || isNoBall,
+      isNoBall: isNoBall || isPendingNoBallRuns, // Mark as no-ball delivery for pending runs too
+      isExtra: isWide || isNoBall || isPendingNoBallRuns,
       batsmanId: innings.currentBatsmanId,
       bowlerId: innings.currentBowlerId,
     };
@@ -345,9 +350,15 @@ export function useCricketStore() {
         };
       }
       const stats = { ...batterStats[innings.currentBatsmanId] };
-      // For no-ball, batter gets the runs they scored (not the extra 1)
-      stats.runs += runs;
-      stats.ballsFaced += 1;
+      // For no-ball itself, batter doesn't get runs (they come on next ball)
+      // For pending no-ball runs, batter gets the runs they scored
+      if (!isNoBall) {
+        stats.runs += runs;
+      }
+      // Don't count ball faced for the no-ball extra itself, but count for pending runs
+      if (!isNoBall) {
+        stats.ballsFaced += 1;
+      }
       if (runs === 4 && !isWide && !isNoBall) stats.fours += 1;
       if (runs === 6 && !isWide && !isNoBall) stats.sixes += 1;
       if (isWicket) {
@@ -377,7 +388,7 @@ export function useCricketStore() {
       if (isWide) stats.wides += 1;
       if (isNoBall) stats.noBalls += 1;
       
-      if (!isWide && !isNoBall) {
+      if (isLegalBall) {
         stats.balls += 1;
         if (stats.balls >= 6) {
           stats.overs += 1;
@@ -395,7 +406,14 @@ export function useCricketStore() {
       innings.nonStrikerBatsmanId = temp;
     }
 
-    if (!isWide && !isNoBall) {
+    // Set/clear pending no-ball runs flag
+    if (isNoBall) {
+      (innings as any).pendingNoBallRuns = true;
+    } else if (isPendingNoBallRuns) {
+      (innings as any).pendingNoBallRuns = false;
+    }
+
+    if (isLegalBall) {
       innings.currentBall += 1;
       if (innings.currentBall >= 6) {
         innings.currentBall = 0;
