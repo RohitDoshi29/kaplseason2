@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Lock, LogIn, UserPlus, AlertCircle } from 'lucide-react';
+import { Lock, LogIn, UserPlus, AlertCircle, Home } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
@@ -16,6 +17,7 @@ const emailSchema = z.string().trim().email({ message: "Invalid email address" }
 const passwordSchema = z.string().min(8, { message: "Password must be at least 8 characters" }).max(72);
 
 export function AdminPasswordGate({ children }: AdminPasswordGateProps) {
+  const navigate = useNavigate();
   const { isAuthenticated, hasAccess, isLoading, signIn, signUp, signOut } = useAdminAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,11 +54,15 @@ export function AdminPasswordGate({ children }: AdminPasswordGateProps) {
           </CardHeader>
           <CardContent>
             <Button 
-              onClick={() => signOut()} 
+              onClick={async () => {
+                await signOut();
+                navigate('/');
+              }} 
               variant="outline" 
-              className="w-full h-12"
+              className="w-full h-12 gap-2"
             >
-              Sign Out
+              <Home className="w-5 h-5" />
+              Go to Home
             </Button>
           </CardContent>
         </Card>
