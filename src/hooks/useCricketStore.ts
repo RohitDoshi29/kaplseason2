@@ -290,6 +290,16 @@ export function useCricketStore() {
       })
       .eq('id', 'current');
 
+    // Reset secondary scorer state so it cannot carry over a previous match
+    // (Secondary scorer UI will auto-sync from the primary match when opened.)
+    await supabase
+      .from('secondary_match_state')
+      .upsert({
+        id: 'current',
+        current_match: null,
+        last_action: null,
+      });
+
     if (error) {
       console.error('Error saving match state:', error);
     }
