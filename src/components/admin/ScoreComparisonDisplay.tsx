@@ -1,10 +1,10 @@
+import { useRealtimeScoreComparison } from '@/hooks/useRealtimeScoreComparison';
 import { useCricketStore } from '@/hooks/useCricketStore';
-import { useSecondaryScorer } from '@/hooks/useSecondaryScorer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 interface ScoreComparisonDisplayProps {
@@ -12,34 +12,34 @@ interface ScoreComparisonDisplayProps {
 }
 
 export function ScoreComparisonDisplay({ showAlert = true }: ScoreComparisonDisplayProps) {
-  const { matchState: primaryMatchState, getTeam } = useCricketStore();
-  const { matchState: secondaryMatchState } = useSecondaryScorer();
-  const [lastAlertTime, setLastAlertTime] = useState(0);
+  const { getTeam } = useCricketStore();
+  const {
+    primaryMatch,
+    secondaryMatch,
+    primaryScore,
+    secondaryScore,
+    runsDiff,
+    wicketsDiff,
+    hasDiscrepancy,
+  } = useRealtimeScoreComparison();
 
-  const primaryMatch = primaryMatchState.currentMatch;
-  const secondaryMatch = secondaryMatchState.currentMatch;
+  const lastAlertTimeRef = useRef(0);
 
   const primaryInnings = primaryMatch?.currentInnings === 1 ? primaryMatch.innings1 : primaryMatch?.innings2;
   const secondaryInnings = secondaryMatch?.currentInnings === 1 ? secondaryMatch.innings1 : secondaryMatch?.innings2;
-
   const battingTeam = primaryMatch ? getTeam(primaryInnings?.battingTeamId || '') : null;
-
-  // Calculate discrepancy
-  const runsDiff = Math.abs((primaryInnings?.runs || 0) - (secondaryInnings?.runs || 0));
-  const wicketsDiff = Math.abs((primaryInnings?.wickets || 0) - (secondaryInnings?.wickets || 0));
-  const hasDiscrepancy = runsDiff > 0 || wicketsDiff > 0;
 
   // Show toast alert when discrepancy is detected
   useEffect(() => {
-    if (showAlert && hasDiscrepancy && Date.now() - lastAlertTime > 5000) {
-      toast.error(`Score Mismatch! Runs differ by ${runsDiff}, Wickets differ by ${wicketsDiff}`, {
-        duration: 5000,
+    if (showAlert && hasDiscrepancy && Date.now() - lastAlertTimeRef.current > 5000) {
+      toast.error(`🚨 Score Mismatch! Runs differ by ${runsDiff}, Wickets differ by ${wicketsDiff}`, {
+        duration: 8000,
       });
-      setLastAlertTime(Date.now());
+      lastAlertTimeRef.current = Date.now();
     }
-  }, [hasDiscrepancy, runsDiff, wicketsDiff, showAlert, lastAlertTime]);
+  }, [hasDiscrepancy, runsDiff, wicketsDiff, showAlert]);
 
-  if (!primaryMatch || !secondaryMatch) {
+  if (!primaryMatch || !secondaryMatch || primaryMatch.id !== secondaryMatch.id) {
     return null;
   }
 
@@ -47,7 +47,7 @@ export function ScoreComparisonDisplay({ showAlert = true }: ScoreComparisonDisp
     <Card className="border-2 border-muted">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center justify-between">
-          <span>Score Comparison</span>
+          <span>Real-time Score Comparison</span>
           {hasDiscrepancy ? (
             <Badge variant="destructive" className="animate-pulse">
               <AlertTriangle className="w-3 h-3 mr-1" />
@@ -91,13 +91,13 @@ export function ScoreComparisonDisplay({ showAlert = true }: ScoreComparisonDisp
         </div>
 
         {hasDiscrepancy && (
-          <Alert variant="destructive" className="mt-2">
+          <Alert variant="destructive" className="mt-2 animate-pulse">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Score Discrepancy Detected!</AlertTitle>
             <AlertDescription>
               {runsDiff > 0 && <span>Runs differ by {runsDiff}. </span>}
               {wicketsDiff > 0 && <span>Wickets differ by {wicketsDiff}. </span>}
-              Please review and correct.
+              Please verify with the other scorer immediately.
             </AlertDescription>
           </Alert>
         )}
