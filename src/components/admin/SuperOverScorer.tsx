@@ -301,8 +301,8 @@ export default function SuperOverScorer({ onEndMatch }: SuperOverScorerProps) {
           </CardHeader>
           <CardContent className="space-y-3">
             {/* Runs */}
-            <div className="grid grid-cols-5 gap-2">
-              {[0, 1, 2, 3].map((runs) => (
+            <div className="grid grid-cols-7 gap-2">
+              {[-2, -1, 0, 1, 2, 3].map((runs) => (
                 <Button
                   key={runs}
                   variant="outline"
