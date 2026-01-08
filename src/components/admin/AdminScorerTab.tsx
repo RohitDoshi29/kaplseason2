@@ -289,7 +289,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                   <SelectValue placeholder="Select striker" />
                 </SelectTrigger>
                 <SelectContent>
-                  {battingTeam.players.map((player) => {
+                  {getFilteredPlayers(battingTeam, battingPlayingPlayers).map((player) => {
                     const stats = currentInnings.batterStats[player.id];
                     const isOut = stats?.isOut;
                     const isNonStriker = player.id === currentInnings.nonStrikerBatsmanId;
@@ -317,7 +317,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                   <SelectValue placeholder="Select non-striker" />
                 </SelectTrigger>
                 <SelectContent>
-                  {battingTeam.players.map((player) => {
+                  {getFilteredPlayers(battingTeam, battingPlayingPlayers).map((player) => {
                     const stats = currentInnings.batterStats[player.id];
                     const isOut = stats?.isOut;
                     const isStriker = player.id === currentInnings.currentBatsmanId;
@@ -356,7 +356,7 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                   <SelectValue placeholder="Select bowler" />
                 </SelectTrigger>
                 <SelectContent>
-                  {bowlingTeam.players.map((player) => {
+                  {getFilteredPlayers(bowlingTeam, bowlingPlayingPlayers).map((player) => {
                     const stats = currentInnings.bowlerStats[player.id];
                     const hasCompletedMaxOvers = stats && stats.overs >= MATCH_CONSTANTS.MAX_OVERS_PER_BOWLER;
                     return (

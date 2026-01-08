@@ -5,12 +5,14 @@ import { Navigation } from '@/components/cricket/Navigation';
 import { ScoreCard } from '@/components/cricket/ScoreCard';
 import { BallTicker } from '@/components/cricket/BallTicker';
 import { OverTable } from '@/components/cricket/OverTable';
-import { PlayCircle } from 'lucide-react';
+import { LiveMatchInfo } from '@/components/cricket/LiveMatchInfo';
+import { MatchHistory } from '@/components/cricket/MatchHistory';
+import { PlayCircle, History } from 'lucide-react';
 import { MATCH_TYPE_LABELS } from '@/lib/cricketTypes';
 import { CricketAnimation, useCricketAnimation } from '@/components/cricket/CricketAnimations';
 
 const Index = () => {
-  const { matchState, getTeam, isLoaded } = useCricketStore();
+  const { matchState, matchHistory, getTeam, isLoaded } = useCricketStore();
   const { animation, triggerFour, triggerSix, triggerWicket, triggerWinner, clearAnimation } = useCricketAnimation();
   const lastProcessedBallRef = useRef<string | null>(null);
   const match = matchState.currentMatch;
@@ -18,6 +20,8 @@ const Index = () => {
   const team1 = match ? getTeam(match.team1Id) : null;
   const team2 = match ? getTeam(match.team2Id) : null;
   const currentInnings = match?.currentInnings === 1 ? match.innings1 : match?.innings2;
+  const battingTeam = match?.currentInnings === 1 ? team1 : team2;
+  const bowlingTeam = match?.currentInnings === 1 ? team2 : team1;
   const allBalls = currentInnings?.overs.flatMap(o => o.balls) || [];
 
   // Trigger animations for viewers based on last ball
@@ -106,6 +110,16 @@ const Index = () => {
               )}
             </div>
 
+            {/* Live Match Info - Batsmen, Bowler, Run Rates */}
+            {currentInnings && battingTeam && bowlingTeam && (
+              <LiveMatchInfo
+                match={match}
+                battingTeam={battingTeam}
+                bowlingTeam={bowlingTeam}
+                currentInnings={currentInnings}
+              />
+            )}
+
             {/* Ball Ticker */}
             <div className="bg-card rounded-xl p-4 shadow-sm">
               <BallTicker balls={allBalls} />
@@ -113,18 +127,26 @@ const Index = () => {
 
             {/* Over Table */}
             {currentInnings && <OverTable overs={currentInnings.overs} />}
+
+            {/* Match History */}
+            <MatchHistory matchHistory={matchHistory} getTeam={getTeam} limit={5} />
           </>
         ) : (
-          <div className="text-center py-16 space-y-6">
-            <div className="w-24 h-24 mx-auto rounded-full bg-muted flex items-center justify-center">
-              <PlayCircle className="w-12 h-12 text-muted-foreground" />
+          <div className="space-y-8">
+            <div className="text-center py-16 space-y-6">
+              <div className="w-24 h-24 mx-auto rounded-full bg-muted flex items-center justify-center">
+                <PlayCircle className="w-12 h-12 text-muted-foreground" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold mb-2">No Live Match</h2>
+                <p className="text-muted-foreground">
+                  No match is currently in progress
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold mb-2">No Live Match</h2>
-              <p className="text-muted-foreground">
-                No match is currently in progress
-              </p>
-            </div>
+            
+            {/* Match History when no live match */}
+            <MatchHistory matchHistory={matchHistory} getTeam={getTeam} limit={10} />
           </div>
         )}
       </main>
