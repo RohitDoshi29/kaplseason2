@@ -16,7 +16,7 @@ const emailSchema = z.string().trim().email({ message: "Invalid email address" }
 const passwordSchema = z.string().min(8, { message: "Password must be at least 8 characters" }).max(72);
 
 export function AdminPasswordGate({ children }: AdminPasswordGateProps) {
-  const { isAuthenticated, isAdmin, isLoading, signIn, signUp, signOut } = useAdminAuth();
+  const { isAuthenticated, hasAccess, isLoading, signIn, signUp, signOut } = useAdminAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
@@ -31,13 +31,13 @@ export function AdminPasswordGate({ children }: AdminPasswordGateProps) {
     );
   }
 
-  // User is authenticated and is admin - show content
-  if (isAuthenticated && isAdmin) {
+  // User is authenticated and has scorer access - show content
+  if (isAuthenticated && hasAccess) {
     return <>{children}</>;
   }
 
-  // User is authenticated but NOT admin - show access denied
-  if (isAuthenticated && !isAdmin) {
+  // User is authenticated but doesn't have scorer access - show access denied
+  if (isAuthenticated && !hasAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
         <Card className="w-full max-w-md">
@@ -47,7 +47,7 @@ export function AdminPasswordGate({ children }: AdminPasswordGateProps) {
             </div>
             <CardTitle className="text-2xl">Access Denied</CardTitle>
             <CardDescription>
-              You don't have admin privileges. Please contact an administrator to request access.
+              You don't have scorer privileges. Please contact an administrator to be assigned as a primary or secondary scorer.
             </CardDescription>
           </CardHeader>
           <CardContent>
