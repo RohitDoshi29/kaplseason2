@@ -5,10 +5,10 @@ import { Navigation } from '@/components/cricket/Navigation';
 import { ScoreCard } from '@/components/cricket/ScoreCard';
 import { BallTicker } from '@/components/cricket/BallTicker';
 import { OverTable } from '@/components/cricket/OverTable';
-import { LiveMatchInfo } from '@/components/cricket/LiveMatchInfo';
+import { LiveMatchInfo, LastMatchResult } from '@/components/cricket/LiveMatchInfo';
 import { MatchHistory } from '@/components/cricket/MatchHistory';
-import { PlayCircle, History } from 'lucide-react';
-import { MATCH_TYPE_LABELS } from '@/lib/cricketTypes';
+import { PlayCircle, Trophy } from 'lucide-react';
+import { MATCH_TYPE_LABELS, Match } from '@/lib/cricketTypes';
 import { CricketAnimation, useCricketAnimation } from '@/components/cricket/CricketAnimations';
 
 const Index = () => {
@@ -23,6 +23,10 @@ const Index = () => {
   const battingTeam = match?.currentInnings === 1 ? team1 : team2;
   const bowlingTeam = match?.currentInnings === 1 ? team2 : team1;
   const allBalls = currentInnings?.overs.flatMap(o => o.balls) || [];
+
+  // Get last completed match
+  const completedMatches = matchHistory.filter(m => m.status === 'completed');
+  const lastCompletedMatch = completedMatches.length > 0 ? completedMatches[completedMatches.length - 1] : null;
 
   // Trigger animations for viewers based on last ball
   useEffect(() => {
@@ -110,13 +114,15 @@ const Index = () => {
               )}
             </div>
 
-            {/* Live Match Info - Batsmen, Bowler, Run Rates */}
+            {/* Live Match Info - Batsmen, Bowler, Run Rates, Full Scorecard */}
             {currentInnings && battingTeam && bowlingTeam && (
               <LiveMatchInfo
                 match={match}
                 battingTeam={battingTeam}
                 bowlingTeam={bowlingTeam}
                 currentInnings={currentInnings}
+                team1={team1}
+                team2={team2}
               />
             )}
 
@@ -133,14 +139,24 @@ const Index = () => {
           </>
         ) : (
           <div className="space-y-8">
-            <div className="text-center py-16 space-y-6">
+            {/* Show last match result if available */}
+            {lastCompletedMatch && (
+              <LastMatchResult
+                match={lastCompletedMatch}
+                team1={getTeam(lastCompletedMatch.team1Id)!}
+                team2={getTeam(lastCompletedMatch.team2Id)!}
+                winnerTeam={lastCompletedMatch.winner ? getTeam(lastCompletedMatch.winner) || null : null}
+              />
+            )}
+            
+            <div className="text-center py-12 space-y-6">
               <div className="w-24 h-24 mx-auto rounded-full bg-muted flex items-center justify-center">
                 <PlayCircle className="w-12 h-12 text-muted-foreground" />
               </div>
               <div>
                 <h2 className="text-2xl font-bold mb-2">No Live Match</h2>
                 <p className="text-muted-foreground">
-                  No match is currently in progress
+                  Waiting for the next match to begin...
                 </p>
               </div>
             </div>

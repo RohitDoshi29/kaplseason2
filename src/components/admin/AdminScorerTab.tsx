@@ -38,11 +38,12 @@ interface AdminScorerTabProps {
 }
 
 export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProps) {
-  const { matchState, matchHistory, getTeam, addBall, undoLastBall, undoToBall, switchBattingTeam, swapStrike, endMatch, selectBatsman, selectBowler, getPlayingPlayers, replacePlayer } = useCricketStore();
+  const { matchState, matchHistory, getTeam, addBall, addRunOut, undoLastBall, undoToBall, switchBattingTeam, swapStrike, endMatch, selectBatsman, selectBowler, getPlayingPlayers, replacePlayer } = useCricketStore();
   const match = matchState.currentMatch;
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const { animation, triggerFour, triggerSix, triggerWicket, triggerWinner, clearAnimation } = useCricketAnimation();
+  const [runOutDialogOpen, setRunOutDialogOpen] = useState(false);
 
   const team1 = match ? getTeam(match.team1Id) : null;
   const team2 = match ? getTeam(match.team2Id) : null;
@@ -89,6 +90,15 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
     } else if (runs === 4) {
       triggerFour();
     }
+  };
+
+  const handleRunOut = (batsmanId: string, runs: number) => {
+    if (!currentInnings?.currentBatsmanId || !currentInnings?.currentBowlerId) {
+      toast.error('Please select batsman and bowler first');
+      return;
+    }
+    addRunOut(batsmanId, runs);
+    triggerWicket();
   };
 
   const handleUndo = () => {
@@ -588,15 +598,66 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
             </div>
           </div>
 
-          {/* Wicket */}
-          <Button
-            variant="destructive"
-            className="w-full h-12 md:h-16 text-xl md:text-2xl font-bold"
-            onClick={() => handleAddBall(0, true)}
-            disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
-          >
-            WICKET
-          </Button>
+          {/* Wickets */}
+          <div>
+            <p className="text-xs md:text-sm text-muted-foreground mb-1.5 md:mb-2">Wickets</p>
+            <div className="grid grid-cols-2 gap-1.5 md:gap-2">
+              <Button
+                variant="destructive"
+                className="h-12 md:h-16 text-lg md:text-xl font-bold"
+                onClick={() => handleAddBall(0, true)}
+                disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+              >
+                WICKET
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="destructive"
+                    className="h-12 md:h-16 text-lg md:text-xl font-bold"
+                    disabled={!currentInnings.currentBatsmanId || !currentInnings.currentBowlerId}
+                  >
+                    RUN OUT
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Run Out - Select Batsman</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Which batsman is run out?
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <div className="flex flex-col gap-2 py-4">
+                    {currentBatsman && (
+                      <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={() => {
+                          handleRunOut(currentInnings.currentBatsmanId!, 0);
+                        }}
+                      >
+                        {currentBatsman.name} (Striker)
+                      </Button>
+                    )}
+                    {nonStriker && (
+                      <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={() => {
+                          handleRunOut(currentInnings.nonStrikerBatsmanId!, 0);
+                        }}
+                      >
+                        {nonStriker.name} (Non-Striker)
+                      </Button>
+                    )}
+                  </div>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -721,6 +782,8 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
             battingTeam={battingTeam}
             bowlingTeam={bowlingTeam}
             currentInnings={currentInnings}
+            battingPlayingPlayers={battingPlayingPlayers}
+            bowlingPlayingPlayers={bowlingPlayingPlayers}
             onReplace={replacePlayer}
           />
 

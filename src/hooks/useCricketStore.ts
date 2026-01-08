@@ -455,6 +455,159 @@ export function useCricketStore() {
     
     setMatchState(newState);
     await saveMatchState(newState);
+
+    // Check if 2nd innings target reached - auto end match
+    if (match.currentInnings === 2 && match.innings1) {
+      const target = match.innings1.runs + 1;
+      if (innings.runs >= target) {
+        // Target reached - batting team wins
+        toast.success('Target reached! Match will be ended.');
+      }
+    }
+  }, [matchState, saveMatchState]);
+
+  // Add run out - allows specifying which batsman is out
+  const addRunOut = useCallback(async (outBatsmanId: string, runs: number = 0) => {
+    if (!matchState.currentMatch) return;
+    
+    const match = { ...matchState.currentMatch };
+    const innings = match.currentInnings === 1 ? { ...match.innings1! } : { ...match.innings2! };
+    const overs = [...innings.overs];
+    const currentOverIndex = overs.length - 1;
+    const currentOver = { ...overs[currentOverIndex], balls: [...overs[currentOverIndex].balls] };
+
+    // Check wicket limit
+    if (innings.wickets >= MATCH_CONSTANTS.MAX_WICKETS) {
+      return;
+    }
+
+    const ball: Ball = {
+      id: Date.now().toString(),
+      runs: runs,
+      isWicket: true,
+      isWide: false,
+      isNoBall: false,
+      isExtra: false,
+      batsmanId: outBatsmanId,
+      bowlerId: innings.currentBowlerId,
+    };
+
+    currentOver.balls.push(ball);
+    innings.runs += runs;
+    innings.wickets += 1;
+
+    // Update batter stats - the batsman who faced the ball
+    if (innings.currentBatsmanId) {
+      const batterStats = { ...innings.batterStats };
+      if (!batterStats[innings.currentBatsmanId]) {
+        batterStats[innings.currentBatsmanId] = {
+          runs: 0,
+          ballsFaced: 0,
+          fours: 0,
+          sixes: 0,
+          isOut: false,
+        };
+      }
+      const strikerStats = { ...batterStats[innings.currentBatsmanId] };
+      strikerStats.runs += runs;
+      strikerStats.ballsFaced += 1;
+      if (runs === 4) strikerStats.fours += 1;
+      if (runs === 6) strikerStats.sixes += 1;
+      batterStats[innings.currentBatsmanId] = strikerStats;
+      
+      // Mark the out batsman
+      if (!batterStats[outBatsmanId]) {
+        batterStats[outBatsmanId] = {
+          runs: 0,
+          ballsFaced: 0,
+          fours: 0,
+          sixes: 0,
+          isOut: false,
+        };
+      }
+      const outStats = { ...batterStats[outBatsmanId] };
+      outStats.isOut = true;
+      outStats.dismissalType = 'run out';
+      batterStats[outBatsmanId] = outStats;
+      
+      innings.batterStats = batterStats;
+    }
+
+    // Update bowler stats (runs conceded, but no wicket credit for run out)
+    if (innings.currentBowlerId) {
+      const bowlerStats = { ...innings.bowlerStats };
+      if (!bowlerStats[innings.currentBowlerId]) {
+        bowlerStats[innings.currentBowlerId] = {
+          overs: 0,
+          balls: 0,
+          runs: 0,
+          wickets: 0,
+          wides: 0,
+          noBalls: 0,
+        };
+      }
+      const stats = { ...bowlerStats[innings.currentBowlerId] };
+      stats.runs += runs;
+      // No wicket credit for run out
+      stats.balls += 1;
+      if (stats.balls >= 6) {
+        stats.overs += 1;
+        stats.balls = 0;
+      }
+      bowlerStats[innings.currentBowlerId] = stats;
+      innings.bowlerStats = bowlerStats;
+    }
+
+    // Clear the out batsman from current position
+    if (innings.currentBatsmanId === outBatsmanId) {
+      innings.currentBatsmanId = undefined;
+    }
+    if (innings.nonStrikerBatsmanId === outBatsmanId) {
+      innings.nonStrikerBatsmanId = undefined;
+    }
+
+    // Rotate strike on odd runs
+    if (runs % 2 === 1 && innings.currentBatsmanId && innings.nonStrikerBatsmanId) {
+      const temp = innings.currentBatsmanId;
+      innings.currentBatsmanId = innings.nonStrikerBatsmanId;
+      innings.nonStrikerBatsmanId = temp;
+    }
+
+    innings.currentBall += 1;
+    if (innings.currentBall >= 6) {
+      innings.currentBall = 0;
+      innings.currentOver += 1;
+      
+      if (innings.currentOver < MATCH_CONSTANTS.MAX_OVERS) {
+        overs.push({ number: innings.currentOver + 1, balls: [], bowlerId: undefined });
+      }
+      
+      // Rotate strike at end of over
+      if (innings.currentBatsmanId && innings.nonStrikerBatsmanId) {
+        const temp = innings.currentBatsmanId;
+        innings.currentBatsmanId = innings.nonStrikerBatsmanId;
+        innings.nonStrikerBatsmanId = temp;
+      }
+      
+      innings.currentBowlerId = undefined;
+    }
+
+    overs[currentOverIndex] = currentOver;
+    innings.overs = overs;
+
+    if (match.currentInnings === 1) {
+      match.innings1 = innings;
+    } else {
+      match.innings2 = innings;
+    }
+
+    const newState = {
+      currentMatch: match,
+      lastAction: { type: 'addRunOut', previousState: matchState.currentMatch },
+    };
+    
+    setMatchState(newState);
+    await saveMatchState(newState);
   }, [matchState, saveMatchState]);
 
   const selectBatsman = useCallback(async (playerId: string, isStriker: boolean) => {
@@ -971,6 +1124,7 @@ export function useCricketStore() {
     startMatch,
     getCurrentInnings,
     addBall,
+    addRunOut,
     selectBatsman,
     selectBowler,
     undoLastBall,

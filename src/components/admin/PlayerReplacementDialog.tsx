@@ -23,6 +23,8 @@ interface PlayerReplacementDialogProps {
   battingTeam: Team;
   bowlingTeam: Team;
   currentInnings: Innings;
+  battingPlayingPlayers: string[];
+  bowlingPlayingPlayers: string[];
   onReplace: (oldPlayerId: string, newPlayerId: string, teamId: string) => void;
 }
 
@@ -30,6 +32,8 @@ export function PlayerReplacementDialog({
   battingTeam,
   bowlingTeam,
   currentInnings,
+  battingPlayingPlayers,
+  bowlingPlayingPlayers,
   onReplace,
 }: PlayerReplacementDialogProps) {
   const [open, setOpen] = useState(false);
@@ -38,12 +42,20 @@ export function PlayerReplacementDialog({
   const [newPlayerId, setNewPlayerId] = useState<string>('');
 
   const activeTeam = selectedTeam === 'batting' ? battingTeam : bowlingTeam;
+  const playingPlayerIds = selectedTeam === 'batting' ? battingPlayingPlayers : bowlingPlayingPlayers;
+  
+  // Get the 7 playing players for the selected team
+  const getPlayingPlayers = () => {
+    if (playingPlayerIds.length === 0) return activeTeam.players; // Fallback
+    return activeTeam.players.filter(p => playingPlayerIds.includes(p.id));
+  };
   
   // Get players currently on field (batsmen or current bowler)
   const getActivePlayers = () => {
+    const playing = getPlayingPlayers();
     if (selectedTeam === 'batting') {
       // Batsmen who are currently on field or have batted but not out
-      return activeTeam.players.filter(p => {
+      return playing.filter(p => {
         const stats = currentInnings.batterStats[p.id];
         // Either on strike, non-striker, or has batted but not out
         return (
@@ -54,26 +66,27 @@ export function PlayerReplacementDialog({
       });
     } else {
       // Current bowler
-      return activeTeam.players.filter(p => p.id === currentInnings.currentBowlerId);
+      return playing.filter(p => p.id === currentInnings.currentBowlerId);
     }
   };
 
-  // Get replacement options (players not currently active)
+  // Get replacement options (players from the 7 who are not currently active)
   const getReplacementOptions = () => {
+    const playing = getPlayingPlayers();
     const activePlayers = getActivePlayers();
     const activeIds = activePlayers.map(p => p.id);
     
     if (selectedTeam === 'batting') {
-      // Players who haven't batted yet or are out
-      return activeTeam.players.filter(p => {
+      // Players from the 7 who haven't batted yet or are out
+      return playing.filter(p => {
         const stats = currentInnings.batterStats[p.id];
         const isActive = activeIds.includes(p.id);
         // Not active and either hasn't batted or is out
         return !isActive && (!stats || stats.isOut);
       });
     } else {
-      // Any bowler not currently bowling
-      return activeTeam.players.filter(p => 
+      // Any bowler from the 7 not currently bowling
+      return playing.filter(p => 
         !activeIds.includes(p.id)
       );
     }
@@ -103,7 +116,7 @@ export function PlayerReplacementDialog({
         <DialogHeader>
           <DialogTitle>Replace Player</DialogTitle>
           <DialogDescription>
-            Replace a player who has retired or is injured with another player from the squad.
+            Replace a player who has retired or is injured with another player from the playing 7.
           </DialogDescription>
         </DialogHeader>
 

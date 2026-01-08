@@ -15,11 +15,11 @@ export function CricketAnimation({ type, teamName, onComplete }: CricketAnimatio
   useEffect(() => {
     if (type) {
       setVisible(true);
-      // Reduced animation durations: winner 2s, others 800ms
+      // Animation durations: winner 4s, others 1.5s
       const timer = setTimeout(() => {
         setVisible(false);
         onComplete?.();
-      }, type === 'winner' ? 2000 : 800);
+      }, type === 'winner' ? 4000 : 1500);
       return () => clearTimeout(timer);
     }
   }, [type, onComplete]);
