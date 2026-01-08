@@ -25,16 +25,19 @@ import { toast } from 'sonner';
 import { Undo2, RefreshCw, Flag, PlayCircle, Target, User, ArrowLeftRight, History, Eye, RotateCcw } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Match, Ball } from '@/lib/cricketTypes';
+import { MATCH_CONSTANTS } from '@/lib/matchConstants';
 import MatchHistoryDetails from './MatchHistoryDetails';
 import { CricketAnimation, useCricketAnimation } from '@/components/cricket/CricketAnimations';
 import { OverTable } from '@/components/cricket/OverTable';
+import { ScoreComparisonDisplay } from './ScoreComparisonDisplay';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 interface AdminScorerTabProps {
   onNavigateToSetup: () => void;
 }
 
 export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProps) {
-  const { matchState, matchHistory, getTeam, addBall, undoLastBall, undoToBall, switchBattingTeam, swapStrike, endMatch, selectBatsman, selectBowler } = useCricketStore();
+  const { matchState, matchHistory, getTeam, addBall, undoLastBall, undoToBall, switchBattingTeam, swapStrike, endMatch, selectBatsman, selectBowler, getPlayingPlayers } = useCricketStore();
   const match = matchState.currentMatch;
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -50,9 +53,30 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
   const target = match?.currentInnings === 2 && match.innings1 ? match.innings1.runs + 1 : null;
   const runsNeeded = target && currentInnings ? target - currentInnings.runs : null;
 
+  // Check limits
+  const isInningsComplete = currentInnings && (
+    currentInnings.wickets >= MATCH_CONSTANTS.MAX_WICKETS ||
+    currentInnings.currentOver >= MATCH_CONSTANTS.MAX_OVERS
+  );
+
+  // Get playing players for selection
+  const battingPlayingPlayers = battingTeam ? getPlayingPlayers(battingTeam.id) : [];
+  const bowlingPlayingPlayers = bowlingTeam ? getPlayingPlayers(bowlingTeam.id) : [];
+
+  // Filter players to only show playing 7
+  const getFilteredPlayers = (team: typeof battingTeam, playerIds: string[]) => {
+    if (!team) return [];
+    if (playerIds.length === 0) return team.players; // Fallback to all players
+    return team.players.filter(p => playerIds.includes(p.id));
+  };
+
   const handleAddBall = (runs: number, isWicket = false, isWide = false, isNoBall = false, noStrikeChange = false) => {
     if (!currentInnings?.currentBatsmanId || !currentInnings?.currentBowlerId) {
       toast.error('Please select batsman and bowler first');
+      return;
+    }
+    if (isInningsComplete) {
+      toast.error('Innings complete! Switch innings or end match.');
       return;
     }
     
@@ -206,11 +230,19 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
         onComplete={clearAnimation}
       />
       <div className="max-w-4xl mx-auto space-y-4">
+      {/* Score Comparison */}
+      <ScoreComparisonDisplay showAlert={true} />
+
       {/* Current Score with Target */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <TeamBadge team={battingTeam} size="md" />
+            <div className="flex items-center gap-2">
+              <TeamBadge team={battingTeam} size="md" />
+              <Badge variant="outline" className="text-xs">
+                {MATCH_CONSTANTS.MAX_OVERS} ov | {MATCH_CONSTANTS.MAX_WICKETS} wkts
+              </Badge>
+            </div>
             <div className="text-right">
               <div className="text-4xl font-bold">
                 {currentInnings.runs}/{currentInnings.wickets}
@@ -218,6 +250,9 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
               <div className="text-muted-foreground">
                 ({currentInnings.currentOver}.{currentInnings.currentBall} ov)
               </div>
+              {isInningsComplete && (
+                <Badge variant="destructive" className="mt-1">Innings Complete</Badge>
+              )}
               {target && (
                 <div className="flex items-center justify-end gap-1 mt-1 text-sm">
                   <Target className="w-4 h-4 text-primary" />
