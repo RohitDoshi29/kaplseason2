@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Match } from '@/lib/cricketTypes';
-import { toast } from 'sonner';
 
 interface ScoreData {
   runs: number;
@@ -9,56 +8,56 @@ interface ScoreData {
   balls: number;
 }
 
+const extractScore = (match: Match | null): ScoreData | null => {
+  if (!match) return null;
+  const innings = match.currentInnings === 1 ? match.innings1 : match.innings2;
+  if (!innings) return null;
+  
+  const totalBalls = innings.overs.reduce((acc, over) => {
+    return acc + over.balls.filter(b => !b.isWide && !b.isNoBall).length;
+  }, 0);
+  
+  return {
+    runs: innings.runs,
+    wickets: innings.wickets,
+    balls: totalBalls,
+  };
+};
+
 export function useRealtimeScoreComparison() {
-  const [primaryScore, setPrimaryScore] = useState<ScoreData | null>(null);
-  const [secondaryScore, setSecondaryScore] = useState<ScoreData | null>(null);
   const [primaryMatch, setPrimaryMatch] = useState<Match | null>(null);
   const [secondaryMatch, setSecondaryMatch] = useState<Match | null>(null);
-
-  const extractScore = (match: Match | null): ScoreData | null => {
-    if (!match) return null;
-    const innings = match.currentInnings === 1 ? match.innings1 : match.innings2;
-    if (!innings) return null;
-    
-    const totalBalls = innings.overs.reduce((acc, over) => {
-      return acc + over.balls.filter(b => !b.isWide && !b.isNoBall).length;
-    }, 0);
-    
-    return {
-      runs: innings.runs,
-      wickets: innings.wickets,
-      balls: totalBalls,
-    };
-  };
+  const [primaryScore, setPrimaryScore] = useState<ScoreData | null>(null);
+  const [secondaryScore, setSecondaryScore] = useState<ScoreData | null>(null);
 
   // Load initial data
-  useEffect(() => {
-    const loadData = async () => {
-      const [primaryRes, secondaryRes] = await Promise.all([
-        supabase.from('match_state').select('*').eq('id', 'current').single(),
-        supabase.from('secondary_match_state').select('*').eq('id', 'current').single(),
-      ]);
+  const loadData = useCallback(async () => {
+    const [primaryRes, secondaryRes] = await Promise.all([
+      supabase.from('match_state').select('*').eq('id', 'current').maybeSingle(),
+      supabase.from('secondary_match_state').select('*').eq('id', 'current').maybeSingle(),
+    ]);
 
-      if (primaryRes.data) {
-        const match = primaryRes.data.current_match as unknown as Match | null;
-        setPrimaryMatch(match);
-        setPrimaryScore(extractScore(match));
-      }
+    if (primaryRes.data) {
+      const match = primaryRes.data.current_match as unknown as Match | null;
+      setPrimaryMatch(match);
+      setPrimaryScore(extractScore(match));
+    }
 
-      if (secondaryRes.data) {
-        const match = secondaryRes.data.current_match as unknown as Match | null;
-        setSecondaryMatch(match);
-        setSecondaryScore(extractScore(match));
-      }
-    };
-
-    loadData();
+    if (secondaryRes.data) {
+      const match = secondaryRes.data.current_match as unknown as Match | null;
+      setSecondaryMatch(match);
+      setSecondaryScore(extractScore(match));
+    }
   }, []);
 
-  // Subscribe to both tables in real-time
   useEffect(() => {
-    const channel = supabase
-      .channel('score-comparison-realtime')
+    loadData();
+  }, [loadData]);
+
+  // Subscribe to both tables in real-time using proper channel setup
+  useEffect(() => {
+    const primaryChannel = supabase
+      .channel('primary-score-realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'match_state' },
@@ -70,6 +69,10 @@ export function useRealtimeScoreComparison() {
           }
         }
       )
+      .subscribe();
+
+    const secondaryChannel = supabase
+      .channel('secondary-score-realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'secondary_match_state' },
@@ -84,7 +87,8 @@ export function useRealtimeScoreComparison() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(primaryChannel);
+      supabase.removeChannel(secondaryChannel);
     };
   }, []);
 
