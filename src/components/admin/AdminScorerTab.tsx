@@ -29,15 +29,16 @@ import { MATCH_CONSTANTS } from '@/lib/matchConstants';
 import MatchHistoryDetails from './MatchHistoryDetails';
 import { CricketAnimation, useCricketAnimation } from '@/components/cricket/CricketAnimations';
 import { OverTable } from '@/components/cricket/OverTable';
-import { ScoreComparisonDisplay } from './ScoreComparisonDisplay';
+import { ScoreDiscrepancyAlert } from './ScoreDiscrepancyAlert';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { PlayerReplacementDialog } from './PlayerReplacementDialog';
 interface AdminScorerTabProps {
   onNavigateToSetup: () => void;
 }
 
 export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProps) {
-  const { matchState, matchHistory, getTeam, addBall, undoLastBall, undoToBall, switchBattingTeam, swapStrike, endMatch, selectBatsman, selectBowler, getPlayingPlayers } = useCricketStore();
+  const { matchState, matchHistory, getTeam, addBall, undoLastBall, undoToBall, switchBattingTeam, swapStrike, endMatch, selectBatsman, selectBowler, getPlayingPlayers, replacePlayer } = useCricketStore();
   const match = matchState.currentMatch;
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -230,8 +231,8 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
         onComplete={clearAnimation}
       />
       <div className="max-w-4xl mx-auto space-y-4">
-      {/* Score Comparison */}
-      <ScoreComparisonDisplay showAlert={true} />
+      {/* Score Discrepancy Alert Only - Primary scorer doesn't see secondary scores */}
+      <ScoreDiscrepancyAlert />
 
       {/* Current Score with Target */}
       <Card>
@@ -357,14 +358,23 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
                 <SelectContent>
                   {bowlingTeam.players.map((player) => {
                     const stats = currentInnings.bowlerStats[player.id];
+                    const hasCompletedMaxOvers = stats && stats.overs >= MATCH_CONSTANTS.MAX_OVERS_PER_BOWLER;
                     return (
-                      <SelectItem key={player.id} value={player.id}>
-                        {player.name} {stats ? `(${stats.overs}.${stats.balls}-${stats.runs}-${stats.wickets})` : ''}
+                      <SelectItem 
+                        key={player.id} 
+                        value={player.id}
+                        disabled={hasCompletedMaxOvers}
+                      >
+                        {player.name} {stats ? `(${stats.overs}.${stats.balls}-${stats.runs}-${stats.wickets})` : ''} 
+                        {hasCompletedMaxOvers && '(Max Overs)'}
                       </SelectItem>
                     );
                   })}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Max {MATCH_CONSTANTS.MAX_OVERS_PER_BOWLER} overs per bowler
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -705,6 +715,14 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
             <Undo2 className="w-5 h-5" />
             Undo Last Ball
           </Button>
+
+          {/* Player Replacement */}
+          <PlayerReplacementDialog
+            battingTeam={battingTeam}
+            bowlingTeam={bowlingTeam}
+            currentInnings={currentInnings}
+            onReplace={replacePlayer}
+          />
 
           {match.currentInnings === 1 && (
             <AlertDialog>

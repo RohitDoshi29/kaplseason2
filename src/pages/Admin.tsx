@@ -62,16 +62,12 @@ export default function Admin() {
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <div className="flex items-center justify-between mb-2">
-              <TabsList className={`grid w-full max-w-3xl mx-auto ${isSecondaryScorer ? 'grid-cols-1' : 'grid-cols-7'}`}>
+              <TabsList className={`grid w-full max-w-3xl mx-auto ${isSecondaryScorer ? 'grid-cols-1' : 'grid-cols-6'}`}>
                 {isPrimaryScorer && (
                   <>
                     <TabsTrigger value="scorer" className="gap-2">
                       <Shield className="w-4 h-4" />
                       <span className="hidden sm:inline">Scorer</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="secondary-scorer" className="gap-2">
-                      <EyeOff className="w-4 h-4" />
-                      <span className="hidden sm:inline">2nd Scorer</span>
                     </TabsTrigger>
                     <TabsTrigger value="setup" className="gap-2">
                       <PlayCircle className="w-4 h-4" />
@@ -113,9 +109,11 @@ export default function Admin() {
               <AdminScorerTab onNavigateToSetup={() => setActiveTab('setup')} />
             </TabsContent>
 
-            <TabsContent value="secondary-scorer">
-              <SecondaryScorerTab />
-            </TabsContent>
+            {isSecondaryScorer && (
+              <TabsContent value="secondary-scorer">
+                <SecondaryScorerTab />
+              </TabsContent>
+            )}
 
             <TabsContent value="setup">
               <AdminMatchSetupTab onNavigateToScorer={() => setActiveTab('scorer')} />

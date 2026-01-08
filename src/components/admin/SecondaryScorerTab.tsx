@@ -26,6 +26,8 @@ import { toast } from 'sonner';
 import { Undo2, RefreshCw, Target, User, ArrowLeftRight, PlayCircle, Eye, EyeOff } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { MATCH_CONSTANTS } from '@/lib/matchConstants';
+import { ScoreDiscrepancyAlert } from './ScoreDiscrepancyAlert';
 
 export default function SecondaryScorerTab() {
   const { matchState: primaryMatchState, getTeam } = useCricketStore();
@@ -109,6 +111,9 @@ export default function SecondaryScorerTab() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
+      {/* Score Discrepancy Alert */}
+      <ScoreDiscrepancyAlert />
+      
       {/* Header Badge */}
       <Card className="bg-secondary/50 border-secondary">
         <CardContent className="py-3">
@@ -239,14 +244,23 @@ export default function SecondaryScorerTab() {
                 <SelectContent>
                   {bowlingTeam.players.map((player) => {
                     const stats = currentInnings.bowlerStats[player.id];
+                    const hasCompletedMaxOvers = stats && stats.overs >= MATCH_CONSTANTS.MAX_OVERS_PER_BOWLER;
                     return (
-                      <SelectItem key={player.id} value={player.id}>
-                        {player.name} {stats ? `(${stats.overs}.${stats.balls}-${stats.runs}-${stats.wickets})` : ''}
+                      <SelectItem 
+                        key={player.id} 
+                        value={player.id}
+                        disabled={hasCompletedMaxOvers}
+                      >
+                        {player.name} {stats ? `(${stats.overs}.${stats.balls}-${stats.runs}-${stats.wickets})` : ''} 
+                        {hasCompletedMaxOvers && '(Max Overs)'}
                       </SelectItem>
                     );
                   })}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Max {MATCH_CONSTANTS.MAX_OVERS_PER_BOWLER} overs per bowler
+              </p>
             </div>
           </CardContent>
         </Card>
