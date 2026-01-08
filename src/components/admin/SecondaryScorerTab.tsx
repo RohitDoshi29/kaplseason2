@@ -49,8 +49,11 @@ export default function SecondaryScorerTab() {
   useEffect(() => {
     if (primaryMatch && (!secondaryMatch || secondaryMatch.id !== primaryMatch.id)) {
       syncWithPrimaryMatch(primaryMatch);
+    } else if (!primaryMatch && secondaryMatch) {
+      // Primary match ended, clear secondary
+      syncWithPrimaryMatch(null);
     }
-  }, [primaryMatch?.id]);
+  }, [primaryMatch?.id, secondaryMatch?.id, syncWithPrimaryMatch]);
 
   const team1 = secondaryMatch ? getTeam(secondaryMatch.team1Id) : null;
   const team2 = secondaryMatch ? getTeam(secondaryMatch.team2Id) : null;
