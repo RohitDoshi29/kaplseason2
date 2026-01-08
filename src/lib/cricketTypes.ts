@@ -67,6 +67,13 @@ export interface Innings {
 
 export type MatchType = 'group' | 'semi_final_1' | 'semi_final_2' | 'final';
 
+export interface SuperOver {
+  innings1: Innings | null;  // Team 1 batting
+  innings2: Innings | null;  // Team 2 batting
+  currentInnings: 1 | 2;
+  completed: boolean;
+}
+
 export interface Match {
   id: string;
   group: 'A' | 'B';
@@ -75,9 +82,11 @@ export interface Match {
   innings1: Innings | null;
   innings2: Innings | null;
   currentInnings: 1 | 2;
-  status: 'setup' | 'live' | 'completed';
+  status: 'setup' | 'live' | 'completed' | 'super_over';
   winner: string | null;
   matchType: MatchType;
+  superOver?: SuperOver;
+  isTied?: boolean;
 }
 
 export const MATCH_TYPE_LABELS: Record<MatchType, string> = {

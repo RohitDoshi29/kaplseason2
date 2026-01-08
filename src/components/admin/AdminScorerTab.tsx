@@ -33,12 +33,14 @@ import { ScoreDiscrepancyAlert } from './ScoreDiscrepancyAlert';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { PlayerReplacementDialog } from './PlayerReplacementDialog';
+import SuperOverScorer from './SuperOverScorer';
+
 interface AdminScorerTabProps {
   onNavigateToSetup: () => void;
 }
 
 export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProps) {
-  const { matchState, matchHistory, getTeam, addBall, addRunOut, undoLastBall, undoToBall, switchBattingTeam, swapStrike, endMatch, selectBatsman, selectBowler, getPlayingPlayers, replacePlayer } = useCricketStore();
+  const { matchState, matchHistory, getTeam, addBall, addRunOut, undoLastBall, undoToBall, switchBattingTeam, swapStrike, endMatch, selectBatsman, selectBowler, getPlayingPlayers, replacePlayer, startSuperOver } = useCricketStore();
   const match = matchState.currentMatch;
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -147,6 +149,74 @@ export default function AdminScorerTab({ onNavigateToSetup }: AdminScorerTabProp
   }) || [];
 
   const availableBowlers = bowlingTeam?.players || [];
+
+  // Show Super Over Scorer if match is in super_over status
+  if (match?.status === 'super_over') {
+    return (
+      <SuperOverScorer onEndMatch={() => {
+        endMatch();
+      }} />
+    );
+  }
+
+  // Show tie options if match is tied
+  if (match?.isTied && match?.innings1 && match?.innings2) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <Card className="bg-gradient-to-r from-primary/10 to-accent/10 border-primary">
+          <CardHeader>
+            <CardTitle className="text-center text-2xl">Match Tied!</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="text-center">
+              <div className="text-lg font-medium mb-2">
+                {team1?.name}: {match.innings1.runs}/{match.innings1.wickets}
+              </div>
+              <div className="text-lg font-medium mb-4">
+                {team2?.name}: {match.innings2.runs}/{match.innings2.wickets}
+              </div>
+              <p className="text-muted-foreground mb-6">
+                Both teams scored {match.innings1.runs} runs. What would you like to do?
+              </p>
+            </div>
+            
+            <div className="grid gap-3">
+              <Button
+                size="lg"
+                className="w-full h-14 text-lg gap-2 bg-gradient-to-r from-primary to-accent"
+                onClick={() => startSuperOver()}
+              >
+                <span className="text-xl">⚡</span>
+                Start Super Over
+              </Button>
+              
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="lg" className="w-full h-12">
+                    End as Tie (No Winner)
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>End Match as Tie?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will end the match without a winner. Points will be shared between both teams.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => endMatch(true)}>
+                      End as Tie
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!match || !team1 || !team2 || !currentInnings || !battingTeam || !bowlingTeam) {
     return (

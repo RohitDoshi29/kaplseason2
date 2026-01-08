@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Team, Match, MatchState, TeamStats, DEFAULT_TEAMS, Ball, Over, Player, Innings, MatchType } from '@/lib/cricketTypes';
+import { Team, Match, MatchState, TeamStats, DEFAULT_TEAMS, Ball, Over, Player, Innings, MatchType, SuperOver } from '@/lib/cricketTypes';
 import { MATCH_CONSTANTS } from '@/lib/matchConstants';
 import type { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -916,14 +916,37 @@ export function useCricketStore() {
     toast.success('Player replaced successfully');
   }, [matchState, saveMatchState]);
 
-  const endMatch = useCallback(async () => {
+  const endMatch = useCallback(async (forceTie: boolean = false) => {
     if (!matchState.currentMatch) return;
     
-    const match = { ...matchState.currentMatch, status: 'completed' as const };
+    const match = { ...matchState.currentMatch };
     
     const team1Runs = match.innings1?.runs || 0;
     const team2Runs = match.innings2?.runs || 0;
-    match.winner = team1Runs > team2Runs ? match.team1Id : team2Runs > team1Runs ? match.team2Id : null;
+    
+    // Check for tie (unless forceTie is true, which means end as tie without super over)
+    const isTied = team1Runs === team2Runs && team2Runs > 0;
+    
+    if (isTied && !forceTie && !match.superOver) {
+      // Mark match as tied - prompt for super over
+      match.isTied = true;
+      const newState = { currentMatch: match, lastAction: null };
+      setMatchState(newState);
+      await saveMatchState(newState);
+      toast.info('Match tied! Start a Super Over or end as tie.');
+      return;
+    }
+    
+    // If ending super over, determine winner from super over
+    if (match.superOver?.completed) {
+      const so1Runs = match.superOver.innings1?.runs || 0;
+      const so2Runs = match.superOver.innings2?.runs || 0;
+      match.winner = so1Runs > so2Runs ? match.team1Id : so2Runs > so1Runs ? match.team2Id : null;
+    } else {
+      match.winner = team1Runs > team2Runs ? match.team1Id : team2Runs > team1Runs ? match.team2Id : null;
+    }
+    
+    match.status = 'completed';
     
     // Save to match history
     const { error } = await supabase
@@ -954,6 +977,259 @@ export function useCricketStore() {
     
     // Update local history
     setMatchHistory(prev => [...prev, match]);
+  }, [matchState, saveMatchState]);
+
+  // Start a super over
+  const startSuperOver = useCallback(async () => {
+    if (!matchState.currentMatch) return;
+    
+    const match = { ...matchState.currentMatch };
+    
+    // Initialize super over
+    match.superOver = {
+      innings1: createInnings(match.team1Id, match.team2Id),
+      innings2: null,
+      currentInnings: 1,
+      completed: false,
+    };
+    match.status = 'super_over';
+    match.isTied = false;
+    
+    const newState = { currentMatch: match, lastAction: null };
+    setMatchState(newState);
+    await saveMatchState(newState);
+    
+    toast.success('Super Over started! Team 1 batting first.');
+  }, [matchState, saveMatchState]);
+
+  // Switch super over innings
+  const switchSuperOverInnings = useCallback(async () => {
+    if (!matchState.currentMatch?.superOver) return;
+    
+    const match = { ...matchState.currentMatch };
+    const superOver = { ...match.superOver! };
+    
+    if (superOver.currentInnings === 1) {
+      superOver.innings2 = createInnings(match.team2Id, match.team1Id);
+      superOver.currentInnings = 2;
+    }
+    
+    match.superOver = superOver;
+    
+    const newState = { currentMatch: match, lastAction: null };
+    setMatchState(newState);
+    await saveMatchState(newState);
+    
+    toast.success('Super Over innings switched! Team 2 batting.');
+  }, [matchState, saveMatchState]);
+
+  // Add ball in super over
+  const addSuperOverBall = useCallback(async (runs: number, isWicket = false, isWide = false, isNoBall = false) => {
+    if (!matchState.currentMatch?.superOver) return;
+    
+    const match = { ...matchState.currentMatch };
+    const superOver = { ...match.superOver! };
+    const innings = superOver.currentInnings === 1 ? { ...superOver.innings1! } : { ...superOver.innings2! };
+    const overs = [...innings.overs];
+    const currentOverIndex = overs.length - 1;
+    const currentOver = { ...overs[currentOverIndex], balls: [...overs[currentOverIndex].balls] };
+
+    // Check wicket limit for super over (2 wickets)
+    if (isWicket && innings.wickets >= MATCH_CONSTANTS.SUPER_OVER_WICKETS) {
+      return;
+    }
+
+    const totalRuns = isNoBall ? runs + 1 : runs;
+    const isLegalBall = !isWide && !isNoBall;
+
+    const ball: Ball = {
+      id: Date.now().toString(),
+      runs: totalRuns,
+      isWicket,
+      isWide,
+      isNoBall,
+      isExtra: isWide || isNoBall,
+      batsmanId: innings.currentBatsmanId,
+      bowlerId: innings.currentBowlerId,
+    };
+
+    currentOver.balls.push(ball);
+    innings.runs += totalRuns;
+    if (isWicket) innings.wickets += 1;
+
+    // Update batter stats
+    if (innings.currentBatsmanId && !isWide) {
+      const batterStats = { ...innings.batterStats };
+      if (!batterStats[innings.currentBatsmanId]) {
+        batterStats[innings.currentBatsmanId] = {
+          runs: 0, ballsFaced: 0, fours: 0, sixes: 0, isOut: false,
+        };
+      }
+      const stats = { ...batterStats[innings.currentBatsmanId] };
+      stats.runs += runs;
+      if (isLegalBall) stats.ballsFaced += 1;
+      if (runs === 4 && !isWide && !isNoBall) stats.fours += 1;
+      if (runs === 6 && !isWide && !isNoBall) stats.sixes += 1;
+      if (isWicket) {
+        stats.isOut = true;
+        stats.dismissalType = 'out';
+      }
+      batterStats[innings.currentBatsmanId] = stats;
+      innings.batterStats = batterStats;
+    }
+
+    // Update bowler stats
+    if (innings.currentBowlerId) {
+      const bowlerStats = { ...innings.bowlerStats };
+      if (!bowlerStats[innings.currentBowlerId]) {
+        bowlerStats[innings.currentBowlerId] = {
+          overs: 0, balls: 0, runs: 0, wickets: 0, wides: 0, noBalls: 0,
+        };
+      }
+      const stats = { ...bowlerStats[innings.currentBowlerId] };
+      stats.runs += totalRuns;
+      if (isWicket) stats.wickets += 1;
+      if (isWide) stats.wides += 1;
+      if (isNoBall) stats.noBalls += 1;
+      if (isLegalBall) {
+        stats.balls += 1;
+        if (stats.balls >= 6) {
+          stats.overs += 1;
+          stats.balls = 0;
+        }
+      }
+      bowlerStats[innings.currentBowlerId] = stats;
+      innings.bowlerStats = bowlerStats;
+    }
+
+    // Rotate strike on odd runs
+    if (totalRuns % 2 === 1 && innings.currentBatsmanId && innings.nonStrikerBatsmanId) {
+      const temp = innings.currentBatsmanId;
+      innings.currentBatsmanId = innings.nonStrikerBatsmanId;
+      innings.nonStrikerBatsmanId = temp;
+    }
+
+    if (isLegalBall) {
+      innings.currentBall += 1;
+      if (innings.currentBall >= 6) {
+        innings.currentBall = 0;
+        innings.currentOver += 1;
+      }
+    }
+
+    overs[currentOverIndex] = currentOver;
+    innings.overs = overs;
+
+    if (superOver.currentInnings === 1) {
+      superOver.innings1 = innings;
+    } else {
+      superOver.innings2 = innings;
+    }
+
+    // Check if super over innings complete (1 over or all wickets)
+    const isInningsComplete = innings.currentOver >= MATCH_CONSTANTS.SUPER_OVER_OVERS || 
+                              innings.wickets >= MATCH_CONSTANTS.SUPER_OVER_WICKETS;
+    
+    // Check if 2nd innings chased target
+    if (superOver.currentInnings === 2 && superOver.innings1) {
+      const target = superOver.innings1.runs + 1;
+      if (innings.runs >= target) {
+        superOver.completed = true;
+        toast.success('Target reached in Super Over!');
+      }
+    }
+
+    match.superOver = superOver;
+    
+    const newState = {
+      currentMatch: match,
+      lastAction: { type: 'addSuperOverBall', previousState: matchState.currentMatch },
+    };
+    
+    setMatchState(newState);
+    await saveMatchState(newState);
+  }, [matchState, saveMatchState]);
+
+  // Select batsman for super over
+  const selectSuperOverBatsman = useCallback(async (playerId: string, isStriker: boolean) => {
+    if (!matchState.currentMatch?.superOver) return;
+    
+    const match = { ...matchState.currentMatch };
+    const superOver = { ...match.superOver! };
+    const innings = superOver.currentInnings === 1 ? { ...superOver.innings1! } : { ...superOver.innings2! };
+    
+    if (isStriker) {
+      innings.currentBatsmanId = playerId;
+    } else {
+      innings.nonStrikerBatsmanId = playerId;
+    }
+    
+    if (!innings.batterStats[playerId]) {
+      innings.batterStats = {
+        ...innings.batterStats,
+        [playerId]: { runs: 0, ballsFaced: 0, fours: 0, sixes: 0, isOut: false },
+      };
+    }
+    
+    if (!innings.battingOrder.includes(playerId)) {
+      innings.battingOrder = [...innings.battingOrder, playerId];
+    }
+    
+    if (superOver.currentInnings === 1) {
+      superOver.innings1 = innings;
+    } else {
+      superOver.innings2 = innings;
+    }
+    
+    match.superOver = superOver;
+    
+    const newState = { currentMatch: match, lastAction: null };
+    setMatchState(newState);
+    await saveMatchState(newState);
+  }, [matchState, saveMatchState]);
+
+  // Select bowler for super over
+  const selectSuperOverBowler = useCallback(async (playerId: string) => {
+    if (!matchState.currentMatch?.superOver) return;
+    
+    const match = { ...matchState.currentMatch };
+    const superOver = { ...match.superOver! };
+    const innings = superOver.currentInnings === 1 ? { ...superOver.innings1! } : { ...superOver.innings2! };
+    
+    innings.currentBowlerId = playerId;
+    
+    if (!innings.bowlerStats[playerId]) {
+      innings.bowlerStats = {
+        ...innings.bowlerStats,
+        [playerId]: { overs: 0, balls: 0, runs: 0, wickets: 0, wides: 0, noBalls: 0 },
+      };
+    }
+    
+    if (superOver.currentInnings === 1) {
+      superOver.innings1 = innings;
+    } else {
+      superOver.innings2 = innings;
+    }
+    
+    match.superOver = superOver;
+    
+    const newState = { currentMatch: match, lastAction: null };
+    setMatchState(newState);
+    await saveMatchState(newState);
+  }, [matchState, saveMatchState]);
+
+  // End super over (mark as completed)
+  const endSuperOver = useCallback(async () => {
+    if (!matchState.currentMatch?.superOver) return;
+    
+    const match = { ...matchState.currentMatch };
+    const superOver = { ...match.superOver! };
+    superOver.completed = true;
+    match.superOver = superOver;
+    
+    const newState = { currentMatch: match, lastAction: null };
+    setMatchState(newState);
+    await saveMatchState(newState);
   }, [matchState, saveMatchState]);
 
   const getTeamStats = useCallback((): TeamStats[] => {
@@ -1137,5 +1413,12 @@ export function useCricketStore() {
     formatOvers,
     resetSeason,
     resetEverything,
+    // Super Over functions
+    startSuperOver,
+    switchSuperOverInnings,
+    addSuperOverBall,
+    selectSuperOverBatsman,
+    selectSuperOverBowler,
+    endSuperOver,
   };
 }
