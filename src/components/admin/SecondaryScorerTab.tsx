@@ -30,7 +30,7 @@ import { MATCH_CONSTANTS } from '@/lib/matchConstants';
 import { ScoreDiscrepancyAlert } from './ScoreDiscrepancyAlert';
 
 export default function SecondaryScorerTab() {
-  const { matchState: primaryMatchState, getTeam } = useCricketStore();
+  const { matchState: primaryMatchState, getTeam, getPlayingPlayers } = useCricketStore();
   const { 
     matchState: secondaryMatchState, 
     syncWithPrimaryMatch,
@@ -60,6 +60,17 @@ export default function SecondaryScorerTab() {
   
   const target = secondaryMatch?.currentInnings === 2 && secondaryMatch.innings1 ? secondaryMatch.innings1.runs + 1 : null;
   const runsNeeded = target && currentInnings ? target - currentInnings.runs : null;
+
+  // Get playing players for selection
+  const battingPlayingPlayers = battingTeam ? getPlayingPlayers(battingTeam.id) : [];
+  const bowlingPlayingPlayers = bowlingTeam ? getPlayingPlayers(bowlingTeam.id) : [];
+
+  // Filter players to only show playing 7
+  const getFilteredPlayers = (team: typeof battingTeam, playerIds: string[]) => {
+    if (!team) return [];
+    if (playerIds.length === 0) return team.players; // Fallback to all players
+    return team.players.filter(p => playerIds.includes(p.id));
+  };
 
   const handleAddBall = (runs: number, isWicket = false, isWide = false, isNoBall = false, noStrikeChange = false) => {
     if (!currentInnings?.currentBatsmanId || !currentInnings?.currentBowlerId) {
@@ -176,7 +187,7 @@ export default function SecondaryScorerTab() {
                   <SelectValue placeholder="Select striker" />
                 </SelectTrigger>
                 <SelectContent>
-                  {battingTeam.players.map((player) => {
+                  {getFilteredPlayers(battingTeam, battingPlayingPlayers).map((player) => {
                     const stats = currentInnings.batterStats[player.id];
                     const isOut = stats?.isOut;
                     const isNonStriker = player.id === currentInnings.nonStrikerBatsmanId;
@@ -204,7 +215,7 @@ export default function SecondaryScorerTab() {
                   <SelectValue placeholder="Select non-striker" />
                 </SelectTrigger>
                 <SelectContent>
-                  {battingTeam.players.map((player) => {
+                  {getFilteredPlayers(battingTeam, battingPlayingPlayers).map((player) => {
                     const stats = currentInnings.batterStats[player.id];
                     const isOut = stats?.isOut;
                     const isStriker = player.id === currentInnings.currentBatsmanId;
@@ -242,7 +253,7 @@ export default function SecondaryScorerTab() {
                   <SelectValue placeholder="Select bowler" />
                 </SelectTrigger>
                 <SelectContent>
-                  {bowlingTeam.players.map((player) => {
+                  {getFilteredPlayers(bowlingTeam, bowlingPlayingPlayers).map((player) => {
                     const stats = currentInnings.bowlerStats[player.id];
                     const hasCompletedMaxOvers = stats && stats.overs >= MATCH_CONSTANTS.MAX_OVERS_PER_BOWLER;
                     return (
