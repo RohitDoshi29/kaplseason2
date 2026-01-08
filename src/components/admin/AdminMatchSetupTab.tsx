@@ -4,6 +4,7 @@ import { TeamBadge } from '@/components/cricket/TeamBadge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -13,8 +14,10 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { PlayCircle, AlertCircle, Trophy, Users } from 'lucide-react';
+import { PlayCircle, AlertCircle, Trophy, Users, UserCheck } from 'lucide-react';
 import { MatchType, MATCH_TYPE_LABELS } from '@/lib/cricketTypes';
+import { MATCH_CONSTANTS } from '@/lib/matchConstants';
+import { Badge } from '@/components/ui/badge';
 
 interface AdminMatchSetupTabProps {
   onNavigateToScorer: () => void;
@@ -33,6 +36,12 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
   const [knockoutTeam2Id, setKnockoutTeam2Id] = useState<string>('');
   const [knockoutTossWinner, setKnockoutTossWinner] = useState<'team1' | 'team2' | ''>('');
   const [knockoutTossDecision, setKnockoutTossDecision] = useState<'bat' | 'bowl' | ''>('');
+  
+  // Playing 7 selection
+  const [team1PlayingPlayers, setTeam1PlayingPlayers] = useState<string[]>([]);
+  const [team2PlayingPlayers, setTeam2PlayingPlayers] = useState<string[]>([]);
+  const [knockoutTeam1PlayingPlayers, setKnockoutTeam1PlayingPlayers] = useState<string[]>([]);
+  const [knockoutTeam2PlayingPlayers, setKnockoutTeam2PlayingPlayers] = useState<string[]>([]);
 
   const groupTeams = getTeamsByGroup(selectedGroup);
   const team1 = team1Id ? getTeam(team1Id) : null;
@@ -46,6 +55,74 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
     setTeam2Id('');
     setTossWinner('');
     setTossDecision('');
+    setTeam1PlayingPlayers([]);
+    setTeam2PlayingPlayers([]);
+  };
+
+  const handleTeam1Change = (id: string) => {
+    setTeam1Id(id);
+    setTossWinner('');
+    setTossDecision('');
+    setTeam1PlayingPlayers([]);
+  };
+
+  const handleTeam2Change = (id: string) => {
+    setTeam2Id(id);
+    setTossWinner('');
+    setTossDecision('');
+    setTeam2PlayingPlayers([]);
+  };
+
+  const togglePlayer = (playerId: string, teamSide: 'team1' | 'team2', isKnockout: boolean) => {
+    if (isKnockout) {
+      if (teamSide === 'team1') {
+        setKnockoutTeam1PlayingPlayers(prev => {
+          if (prev.includes(playerId)) {
+            return prev.filter(id => id !== playerId);
+          }
+          if (prev.length >= MATCH_CONSTANTS.PLAYING_PLAYERS) {
+            toast.error(`Maximum ${MATCH_CONSTANTS.PLAYING_PLAYERS} players allowed`);
+            return prev;
+          }
+          return [...prev, playerId];
+        });
+      } else {
+        setKnockoutTeam2PlayingPlayers(prev => {
+          if (prev.includes(playerId)) {
+            return prev.filter(id => id !== playerId);
+          }
+          if (prev.length >= MATCH_CONSTANTS.PLAYING_PLAYERS) {
+            toast.error(`Maximum ${MATCH_CONSTANTS.PLAYING_PLAYERS} players allowed`);
+            return prev;
+          }
+          return [...prev, playerId];
+        });
+      }
+    } else {
+      if (teamSide === 'team1') {
+        setTeam1PlayingPlayers(prev => {
+          if (prev.includes(playerId)) {
+            return prev.filter(id => id !== playerId);
+          }
+          if (prev.length >= MATCH_CONSTANTS.PLAYING_PLAYERS) {
+            toast.error(`Maximum ${MATCH_CONSTANTS.PLAYING_PLAYERS} players allowed`);
+            return prev;
+          }
+          return [...prev, playerId];
+        });
+      } else {
+        setTeam2PlayingPlayers(prev => {
+          if (prev.includes(playerId)) {
+            return prev.filter(id => id !== playerId);
+          }
+          if (prev.length >= MATCH_CONSTANTS.PLAYING_PLAYERS) {
+            toast.error(`Maximum ${MATCH_CONSTANTS.PLAYING_PLAYERS} players allowed`);
+            return prev;
+          }
+          return [...prev, playerId];
+        });
+      }
+    }
   };
 
   // Determine batting order based on toss
@@ -70,8 +147,20 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
       toast.error('Please complete toss details');
       return;
     }
+    if (team1PlayingPlayers.length !== MATCH_CONSTANTS.PLAYING_PLAYERS) {
+      toast.error(`Please select exactly ${MATCH_CONSTANTS.PLAYING_PLAYERS} players for ${team1?.name}`);
+      return;
+    }
+    if (team2PlayingPlayers.length !== MATCH_CONSTANTS.PLAYING_PLAYERS) {
+      toast.error(`Please select exactly ${MATCH_CONSTANTS.PLAYING_PLAYERS} players for ${team2?.name}`);
+      return;
+    }
     const { battingTeamId, bowlingTeamId } = getBattingOrder(team1Id, team2Id, tossWinner, tossDecision);
-    startMatch(selectedGroup, battingTeamId, bowlingTeamId, 'group');
+    const playingPlayers = {
+      [team1Id]: team1PlayingPlayers,
+      [team2Id]: team2PlayingPlayers,
+    };
+    startMatch(selectedGroup, battingTeamId, bowlingTeamId, 'group', playingPlayers);
     toast.success('Group match started!');
     onNavigateToScorer();
   };
@@ -89,14 +178,61 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
       toast.error('Please complete toss details');
       return;
     }
+    if (knockoutTeam1PlayingPlayers.length !== MATCH_CONSTANTS.PLAYING_PLAYERS) {
+      toast.error(`Please select exactly ${MATCH_CONSTANTS.PLAYING_PLAYERS} players for ${knockoutTeam1?.name}`);
+      return;
+    }
+    if (knockoutTeam2PlayingPlayers.length !== MATCH_CONSTANTS.PLAYING_PLAYERS) {
+      toast.error(`Please select exactly ${MATCH_CONSTANTS.PLAYING_PLAYERS} players for ${knockoutTeam2?.name}`);
+      return;
+    }
     const { battingTeamId, bowlingTeamId } = getBattingOrder(knockoutTeam1Id, knockoutTeam2Id, knockoutTossWinner, knockoutTossDecision);
+    const playingPlayers = {
+      [knockoutTeam1Id]: knockoutTeam1PlayingPlayers,
+      [knockoutTeam2Id]: knockoutTeam2PlayingPlayers,
+    };
     // Use 'A' as default group for knockout matches
-    startMatch('A', battingTeamId, bowlingTeamId, knockoutType);
+    startMatch('A', battingTeamId, bowlingTeamId, knockoutType, playingPlayers);
     toast.success(`${MATCH_TYPE_LABELS[knockoutType]} started!`);
     onNavigateToScorer();
   };
 
   const hasActiveMatch = !!matchState.currentMatch;
+
+  const renderPlayerSelection = (team: typeof team1, selectedPlayers: string[], teamSide: 'team1' | 'team2', isKnockout: boolean) => {
+    if (!team) return null;
+    
+    return (
+      <div className="space-y-2 p-3 rounded-lg border bg-muted/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UserCheck className="w-4 h-4" />
+            <Label className="text-sm font-medium">{team.name} - Playing {MATCH_CONSTANTS.PLAYING_PLAYERS}</Label>
+          </div>
+          <Badge variant={selectedPlayers.length === MATCH_CONSTANTS.PLAYING_PLAYERS ? "default" : "destructive"}>
+            {selectedPlayers.length}/{MATCH_CONSTANTS.PLAYING_PLAYERS}
+          </Badge>
+        </div>
+        <div className="grid grid-cols-2 gap-2 mt-2">
+          {team.players.map((player) => (
+            <div key={player.id} className="flex items-center space-x-2">
+              <Checkbox
+                id={`${isKnockout ? 'ko-' : ''}${teamSide}-${player.id}`}
+                checked={selectedPlayers.includes(player.id)}
+                onCheckedChange={() => togglePlayer(player.id, teamSide, isKnockout)}
+              />
+              <label
+                htmlFor={`${isKnockout ? 'ko-' : ''}${teamSide}-${player.id}`}
+                className="text-sm cursor-pointer"
+              >
+                {player.name}
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   if (hasActiveMatch) {
     const activeMatch = matchState.currentMatch!;
@@ -119,6 +255,9 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
             <div className="text-center text-sm text-muted-foreground mb-2">
               {MATCH_TYPE_LABELS[activeMatch.matchType || 'group']}
             </div>
+            <div className="text-center text-xs text-muted-foreground">
+              {MATCH_CONSTANTS.MAX_OVERS} Overs | {MATCH_CONSTANTS.MAX_WICKETS} Wickets Max
+            </div>
             <div className="flex items-center justify-center gap-4 py-4">
               {activeTeam1 && <TeamBadge team={activeTeam1} size="md" />}
               <span className="text-xl font-bold">vs</span>
@@ -134,10 +273,13 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
   }
 
   return (
-    <div className="max-w-md mx-auto space-y-6">
+    <div className="max-w-lg mx-auto space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>New Match Setup</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>New Match Setup</span>
+            <Badge variant="outline">{MATCH_CONSTANTS.MAX_OVERS} Overs | {MATCH_CONSTANTS.MAX_WICKETS} Wickets</Badge>
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <Tabs value={matchType} onValueChange={(v) => setMatchType(v as 'group' | 'knockout')}>
@@ -153,7 +295,7 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
             </TabsList>
 
             {/* Group Stage Tab */}
-            <TabsContent value="group" className="space-y-6 mt-6">
+            <TabsContent value="group" className="space-y-4 mt-6">
               {/* Group Selection */}
               <div className="space-y-2">
                 <Label>Select Group</Label>
@@ -171,7 +313,7 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
               {/* Team 1 */}
               <div className="space-y-2">
                 <Label>Team 1</Label>
-                <Select value={team1Id} onValueChange={(v) => { setTeam1Id(v); setTossWinner(''); setTossDecision(''); }}>
+                <Select value={team1Id} onValueChange={handleTeam1Change}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
@@ -191,10 +333,13 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
                 </Select>
               </div>
 
+              {/* Team 1 Player Selection */}
+              {team1 && renderPlayerSelection(team1, team1PlayingPlayers, 'team1', false)}
+
               {/* Team 2 */}
               <div className="space-y-2">
                 <Label>Team 2</Label>
-                <Select value={team2Id} onValueChange={(v) => { setTeam2Id(v); setTossWinner(''); setTossDecision(''); }}>
+                <Select value={team2Id} onValueChange={handleTeam2Change}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
@@ -213,6 +358,9 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Team 2 Player Selection */}
+              {team2 && renderPlayerSelection(team2, team2PlayingPlayers, 'team2', false)}
 
               {/* Toss Section */}
               {team1 && team2 && (
@@ -282,7 +430,15 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
               <Button
                 className="w-full h-12 gap-2"
                 onClick={handleStartGroupMatch}
-                disabled={!team1Id || !team2Id || team1Id === team2Id || !tossWinner || !tossDecision}
+                disabled={
+                  !team1Id || 
+                  !team2Id || 
+                  team1Id === team2Id || 
+                  !tossWinner || 
+                  !tossDecision ||
+                  team1PlayingPlayers.length !== MATCH_CONSTANTS.PLAYING_PLAYERS ||
+                  team2PlayingPlayers.length !== MATCH_CONSTANTS.PLAYING_PLAYERS
+                }
               >
                 <PlayCircle className="w-5 h-5" />
                 Start Group Match
@@ -290,7 +446,7 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
             </TabsContent>
 
             {/* Knockout Tab */}
-            <TabsContent value="knockout" className="space-y-6 mt-6">
+            <TabsContent value="knockout" className="space-y-4 mt-6">
               {/* Match Type Selection */}
               <div className="space-y-2">
                 <Label>Match Type</Label>
@@ -324,7 +480,7 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
               {/* Team 1 (from all teams) */}
               <div className="space-y-2">
                 <Label>Team 1</Label>
-                <Select value={knockoutTeam1Id} onValueChange={(v) => { setKnockoutTeam1Id(v); setKnockoutTossWinner(''); setKnockoutTossDecision(''); }}>
+                <Select value={knockoutTeam1Id} onValueChange={(v) => { setKnockoutTeam1Id(v); setKnockoutTossWinner(''); setKnockoutTossDecision(''); setKnockoutTeam1PlayingPlayers([]); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
@@ -345,10 +501,13 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
                 </Select>
               </div>
 
+              {/* Knockout Team 1 Player Selection */}
+              {knockoutTeam1 && renderPlayerSelection(knockoutTeam1, knockoutTeam1PlayingPlayers, 'team1', true)}
+
               {/* Team 2 */}
               <div className="space-y-2">
                 <Label>Team 2</Label>
-                <Select value={knockoutTeam2Id} onValueChange={(v) => { setKnockoutTeam2Id(v); setKnockoutTossWinner(''); setKnockoutTossDecision(''); }}>
+                <Select value={knockoutTeam2Id} onValueChange={(v) => { setKnockoutTeam2Id(v); setKnockoutTossWinner(''); setKnockoutTossDecision(''); setKnockoutTeam2PlayingPlayers([]); }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select team" />
                   </SelectTrigger>
@@ -368,6 +527,9 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Knockout Team 2 Player Selection */}
+              {knockoutTeam2 && renderPlayerSelection(knockoutTeam2, knockoutTeam2PlayingPlayers, 'team2', true)}
 
               {/* Toss Section for Knockout */}
               {knockoutTeam1 && knockoutTeam2 && (
@@ -439,7 +601,15 @@ export default function AdminMatchSetupTab({ onNavigateToScorer }: AdminMatchSet
               <Button
                 className="w-full h-12 gap-2"
                 onClick={handleStartKnockoutMatch}
-                disabled={!knockoutTeam1Id || !knockoutTeam2Id || knockoutTeam1Id === knockoutTeam2Id || !knockoutTossWinner || !knockoutTossDecision}
+                disabled={
+                  !knockoutTeam1Id || 
+                  !knockoutTeam2Id || 
+                  knockoutTeam1Id === knockoutTeam2Id || 
+                  !knockoutTossWinner || 
+                  !knockoutTossDecision ||
+                  knockoutTeam1PlayingPlayers.length !== MATCH_CONSTANTS.PLAYING_PLAYERS ||
+                  knockoutTeam2PlayingPlayers.length !== MATCH_CONSTANTS.PLAYING_PLAYERS
+                }
               >
                 <Trophy className="w-5 h-5" />
                 Start {MATCH_TYPE_LABELS[knockoutType]}

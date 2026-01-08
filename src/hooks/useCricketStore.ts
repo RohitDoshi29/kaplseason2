@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Team, Match, MatchState, TeamStats, DEFAULT_TEAMS, Ball, Over, Player, Innings, MatchType } from '@/lib/cricketTypes';
+import { MATCH_CONSTANTS } from '@/lib/matchConstants';
 import type { Json } from '@/integrations/supabase/types';
 
 // Helper to convert DB team to app Team
@@ -47,6 +48,7 @@ export function useCricketStore() {
   const [matchState, setMatchState] = useState<MatchState>({ currentMatch: null, lastAction: null });
   const [matchHistory, setMatchHistory] = useState<Match[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [playingPlayers, setPlayingPlayers] = useState<Record<string, string[]>>({});
 
   // Load data from database
   useEffect(() => {
@@ -72,10 +74,15 @@ export function useCricketStore() {
         
         if (stateError && stateError.code !== 'PGRST116') throw stateError;
         if (stateData) {
+          const currentMatch = stateData.current_match as unknown as Match | null;
           setMatchState({
-            currentMatch: stateData.current_match as unknown as Match | null,
+            currentMatch,
             lastAction: stateData.last_action as unknown as MatchState['lastAction'],
           });
+          // Extract playing players from match if available
+          if (currentMatch && (currentMatch as any).playingPlayers) {
+            setPlayingPlayers((currentMatch as any).playingPlayers);
+          }
         }
 
         // Load match history
@@ -138,10 +145,14 @@ export function useCricketStore() {
         (payload) => {
           if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
             const newState = payload.new as any;
+            const currentMatch = newState.current_match as unknown as Match | null;
             setMatchState({
-              currentMatch: newState.current_match as unknown as Match | null,
+              currentMatch,
               lastAction: newState.last_action as unknown as MatchState['lastAction'],
             });
+            if (currentMatch && (currentMatch as any).playingPlayers) {
+              setPlayingPlayers((currentMatch as any).playingPlayers);
+            }
           }
         }
       )
@@ -215,11 +226,20 @@ export function useCricketStore() {
     return teams.filter(t => t.group === group);
   }, [teams]);
 
+  const getPlayingPlayers = useCallback((teamId: string) => {
+    return playingPlayers[teamId] || [];
+  }, [playingPlayers]);
+
   const saveMatchState = useCallback(async (newState: MatchState) => {
+    const matchWithPlayers = newState.currentMatch ? {
+      ...newState.currentMatch,
+      playingPlayers,
+    } : null;
+    
     const { error } = await supabase
       .from('match_state')
       .update({
-        current_match: JSON.parse(JSON.stringify(newState.currentMatch)) as Json,
+        current_match: JSON.parse(JSON.stringify(matchWithPlayers)) as Json,
         last_action: JSON.parse(JSON.stringify(newState.lastAction)) as Json,
       })
       .eq('id', 'current');
@@ -227,9 +247,15 @@ export function useCricketStore() {
     if (error) {
       console.error('Error saving match state:', error);
     }
-  }, []);
+  }, [playingPlayers]);
 
-  const startMatch = useCallback(async (group: 'A' | 'B', team1Id: string, team2Id: string, matchType: MatchType = 'group') => {
+  const startMatch = useCallback(async (
+    group: 'A' | 'B', 
+    team1Id: string, 
+    team2Id: string, 
+    matchType: MatchType = 'group',
+    selectedPlayingPlayers?: Record<string, string[]>
+  ) => {
     const newMatch: Match = {
       id: Date.now().toString(),
       group,
@@ -243,10 +269,30 @@ export function useCricketStore() {
       matchType,
     };
     
+    if (selectedPlayingPlayers) {
+      setPlayingPlayers(selectedPlayingPlayers);
+    }
+    
+    const matchWithPlayers = {
+      ...newMatch,
+      playingPlayers: selectedPlayingPlayers || {},
+    };
+    
     const newState = { currentMatch: newMatch, lastAction: null };
     setMatchState(newState);
-    await saveMatchState(newState);
-  }, [saveMatchState]);
+    
+    const { error } = await supabase
+      .from('match_state')
+      .update({
+        current_match: JSON.parse(JSON.stringify(matchWithPlayers)) as Json,
+        last_action: null,
+      })
+      .eq('id', 'current');
+
+    if (error) {
+      console.error('Error saving match state:', error);
+    }
+  }, []);
 
   const getCurrentInnings = useCallback(() => {
     const match = matchState.currentMatch;
@@ -263,9 +309,17 @@ export function useCricketStore() {
     const currentOverIndex = overs.length - 1;
     const currentOver = { ...overs[currentOverIndex], balls: [...overs[currentOverIndex].balls] };
 
+    // Check wicket limit
+    if (isWicket && innings.wickets >= MATCH_CONSTANTS.MAX_WICKETS) {
+      return; // Max wickets reached
+    }
+
+    // For no-ball, add 1 extra run plus any runs scored
+    const totalRuns = isNoBall ? runs + 1 : runs;
+
     const ball: Ball = {
       id: Date.now().toString(),
-      runs,
+      runs: totalRuns,
       isWicket,
       isWide,
       isNoBall,
@@ -275,7 +329,7 @@ export function useCricketStore() {
     };
 
     currentOver.balls.push(ball);
-    innings.runs += runs;
+    innings.runs += totalRuns;
     if (isWicket) innings.wickets += 1;
 
     // Update batter stats
@@ -291,7 +345,8 @@ export function useCricketStore() {
         };
       }
       const stats = { ...batterStats[innings.currentBatsmanId] };
-      stats.runs += isNoBall ? 0 : runs; // No ball runs don't count for batter
+      // For no-ball, batter gets the runs they scored (not the extra 1)
+      stats.runs += runs;
       stats.ballsFaced += 1;
       if (runs === 4 && !isWide && !isNoBall) stats.fours += 1;
       if (runs === 6 && !isWide && !isNoBall) stats.sixes += 1;
@@ -317,7 +372,7 @@ export function useCricketStore() {
         };
       }
       const stats = { ...bowlerStats[innings.currentBowlerId] };
-      stats.runs += runs;
+      stats.runs += totalRuns;
       if (isWicket) stats.wickets += 1;
       if (isWide) stats.wides += 1;
       if (isNoBall) stats.noBalls += 1;
@@ -334,7 +389,7 @@ export function useCricketStore() {
     }
 
     // Rotate strike on odd runs (1, 3, 5) unless noStrikeChange is set
-    if (!noStrikeChange && runs % 2 === 1 && innings.currentBatsmanId && innings.nonStrikerBatsmanId) {
+    if (!noStrikeChange && totalRuns % 2 === 1 && innings.currentBatsmanId && innings.nonStrikerBatsmanId) {
       const temp = innings.currentBatsmanId;
       innings.currentBatsmanId = innings.nonStrikerBatsmanId;
       innings.nonStrikerBatsmanId = temp;
@@ -345,7 +400,13 @@ export function useCricketStore() {
       if (innings.currentBall >= 6) {
         innings.currentBall = 0;
         innings.currentOver += 1;
-        overs.push({ number: innings.currentOver + 1, balls: [], bowlerId: undefined });
+        
+        // Check if max overs reached
+        if (innings.currentOver >= MATCH_CONSTANTS.MAX_OVERS) {
+          // Innings complete
+        } else {
+          overs.push({ number: innings.currentOver + 1, balls: [], bowlerId: undefined });
+        }
         
         // Rotate strike at end of over
         if (innings.currentBatsmanId && innings.nonStrikerBatsmanId) {
@@ -501,10 +562,12 @@ export function useCricketStore() {
       // Revert batter stats
       if (ball.batsmanId && !ball.isWide && innings.batterStats[ball.batsmanId]) {
         const stats = { ...innings.batterStats[ball.batsmanId] };
-        stats.runs -= ball.isNoBall ? 0 : ball.runs;
+        // For no-ball, batter runs = total - 1
+        const batterRuns = ball.isNoBall ? ball.runs - 1 : ball.runs;
+        stats.runs -= batterRuns;
         stats.ballsFaced -= 1;
-        if (ball.runs === 4 && !ball.isWide && !ball.isNoBall) stats.fours -= 1;
-        if (ball.runs === 6 && !ball.isWide && !ball.isNoBall) stats.sixes -= 1;
+        if (batterRuns === 4 && !ball.isWide && !ball.isNoBall) stats.fours -= 1;
+        if (batterRuns === 6 && !ball.isWide && !ball.isNoBall) stats.sixes -= 1;
         if (ball.isWicket) {
           stats.isOut = false;
           stats.dismissalType = undefined;
@@ -640,6 +703,7 @@ export function useCricketStore() {
     const newState = { currentMatch: null, lastAction: null };
     setMatchState(newState);
     await saveMatchState(newState);
+    setPlayingPlayers({});
     
     // Update local history
     setMatchHistory(prev => [...prev, match]);
@@ -735,7 +799,7 @@ export function useCricketStore() {
           team2Stats.runsScored += innings2?.runs || 0;
           team2Stats.oversPlayed += team2OversPlayed;
           team2Stats.runsConceded += innings1?.runs || 0;
-          team2Stats.oversBowled += team2OversBowled;
+          team2Stats.oversBowled += team1OversPlayed;
           if (match.winner === match.team2Id) {
             team2Stats.wins += 1;
           } else if (match.winner) {
@@ -778,6 +842,7 @@ export function useCricketStore() {
     setMatchState(newState);
     await saveMatchState(newState);
     setMatchHistory([]);
+    setPlayingPlayers({});
   }, [saveMatchState]);
 
   const resetEverything = useCallback(async () => {
@@ -804,9 +869,11 @@ export function useCricketStore() {
     matchState,
     matchHistory,
     isLoaded,
+    playingPlayers,
     updateTeam,
     getTeam,
     getTeamsByGroup,
+    getPlayingPlayers,
     startMatch,
     getCurrentInnings,
     addBall,
